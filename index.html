@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Introductory Microeconomics: Interactive Tools</title>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js" charset="utf-8"></script>
+<style>
+  :root {
+    --primary: #012169;
+    --secondary: #f2a900;
+    --accent: #525252;
+    --feasible: #cfe0f7;
+    --feasible-edge: #012169;
+    --bg: #fafafa;
+    --panel: #ffffff;
+    --border: #e5e7eb;
+    --text: #111827;
+    --muted: #6b7280;
+    --sidebar-width: 260px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                 "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.55;
+  }
+  header {
+    background: var(--primary);
+    color: white;
+    padding: 1.5em 2em;
+  }
+  header h1 { margin: 0; font-size: 1.4em; font-weight: 600; }
+  header p { margin: 0.4em 0 0 0; font-size: 0.9em; opacity: 0.9; }
+  nav {
+    background: white;
+    border-bottom: 1px solid var(--border);
+    padding: 0.5em 2em;
+    overflow-x: auto;
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  nav a {
+    color: var(--primary);
+    text-decoration: none;
+    margin-right: 1em;
+    font-size: 0.85em;
+    padding: 0.3em 0.6em;
+    border-radius: 4px;
+  }
+  nav a:hover { background: var(--bg); }
+
+  .layout {
+    display: grid;
+    grid-template-columns: var(--sidebar-width) 1fr;
+    gap: 1.5em;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2em;
+  }
+  aside.sidebar {
+    position: sticky;
+    top: 4em;
+    align-self: start;
+    max-height: calc(100vh - 5em);
+    overflow-y: auto;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1em 1.1em;
+    font-size: 0.85em;
+  }
+  aside.sidebar h3 {
+    margin: 0 0 0.6em 0;
+    font-size: 0.95em;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  aside.sidebar .group-label {
+    margin-top: 1em;
+    font-size: 0.75em;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    padding-top: 0.7em;
+  }
+  aside.sidebar .group-label:first-of-type {
+    margin-top: 0;
+    border-top: none;
+    padding-top: 0;
+  }
+  aside.sidebar ul { list-style: none; margin: 0.3em 0 0 0; padding: 0; }
+  aside.sidebar li { margin: 0.25em 0; }
+  aside.sidebar a { color: var(--primary); text-decoration: none; }
+  aside.sidebar a:hover { text-decoration: underline; }
+
+  main { min-width: 0; }
+  .group-heading {
+    font-size: 1.1em;
+    color: var(--primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 1.5em 0 0.4em 0;
+    padding-bottom: 0.4em;
+    border-bottom: 2px solid var(--border);
+  }
+  .group-heading:first-child { margin-top: 0; }
+  .group-intro {
+    color: var(--muted);
+    font-size: 0.9em;
+    margin: 0 0 1.2em 0;
+  }
+  .tool-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 2em;
+    padding: 1.5em;
+  }
+  .tool-card h2 {
+    margin: 0 0 0.4em 0;
+    font-size: 1.2em;
+    color: var(--primary);
+  }
+  .tool-card .subtitle {
+    color: var(--muted);
+    font-size: 0.9em;
+    margin-bottom: 1em;
+  }
+  .tool-card .summary {
+    margin: 0.5em 0 1em 0;
+    font-size: 0.95em;
+  }
+  .controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 0.6em 1em;
+    margin-bottom: 1em;
+    padding: 0.8em;
+    background: var(--bg);
+    border-radius: 6px;
+  }
+  .control { display: flex; flex-direction: column; }
+  .control label {
+    font-size: 0.85em;
+    color: var(--muted);
+    margin-bottom: 0.2em;
+  }
+  .control .symbol {
+    font-weight: 600;
+    color: var(--primary);
+  }
+  .control .value {
+    font-size: 0.85em;
+    color: var(--primary);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+  .control input[type=range] { width: 100%; accent-color: var(--primary); }
+  .plot { width: 100%; height: 480px; }
+  .equation {
+    font-family: "Cambria Math", Cambria, Georgia, serif;
+    color: var(--accent);
+    background: var(--bg);
+    padding: 0.4em 0.7em;
+    border-radius: 4px;
+    display: inline-block;
+    margin: 0.2em 0;
+  }
+  .readouts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 0.6em 1em;
+    margin: 0.8em 0;
+    font-size: 0.95em;
+  }
+  .readouts .item {
+    background: var(--bg);
+    border-radius: 6px;
+    padding: 0.6em 0.8em;
+  }
+  .readouts .item .big {
+    font-size: 1.3em;
+    font-weight: 600;
+    color: var(--primary);
+    font-variant-numeric: tabular-nums;
+  }
+  table.bundle {
+    border-collapse: collapse;
+    font-size: 0.9em;
+    margin-top: 0.6em;
+    font-variant-numeric: tabular-nums;
+  }
+  table.bundle th, table.bundle td {
+    border-bottom: 1px solid var(--border);
+    padding: 0.3em 0.9em;
+    text-align: right;
+  }
+  table.bundle th {
+    color: var(--primary);
+    font-weight: 600;
+    border-bottom: 2px solid var(--border);
+  }
+  .table-wrap { overflow-x: auto; }
+  .reset-btn {
+    background: white;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    padding: 0.3em 0.8em;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.85em;
+  }
+  .reset-btn:hover { background: var(--primary); color: white; }
+  footer {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85em;
+    padding: 2em;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    aside.sidebar { position: static; max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Introductory Microeconomics: Interactive Tools</h1>
+  <p>Pick a chapter, open a tool, and move the sliders. The figure responds as you move them.</p>
+</header>
+
+<nav>
+  <span style="color:var(--muted); font-size:0.85em; margin-right:0.5em;">Chapters:</span>
+  <a href="#chapter-1">Chapter 1</a>
+</nav>
+
+<div class="layout">
+
+<aside class="sidebar">
+  <h3>Tools by chapter</h3>
+  <div class="group-label">Chapter 1: Limits, alternatives, and choices</div>
+  <ul>
+    <li><a href="#budget-line">Budget line</a></li>
+  </ul>
+</aside>
+
+<main>
+
+<h2 class="group-heading" id="chapter-1">Chapter 1: Limits, alternatives, and choices</h2>
+<p class="group-intro">
+  Individuals have endless desires but a limited budget. The tools in this chapter
+  show what that limit looks like.
+</p>
+
+<section class="tool-card" id="budget-line">
+  <h2>Budget line</h2>
+  <div class="subtitle">You have a budget and can spend it on burgers or cans of soda</div>
+  <p class="summary">
+    Every combination of burgers and soda that costs exactly your budget lies on
+    the thick line. Combinations below the line are affordable (shaded); those
+    above it cost more than you have. Move the sliders to change the budget and
+    the two prices.
+  </p>
+  <div class="controls" id="ctrl-budget"></div>
+  <div class="readouts" id="readouts-budget"></div>
+  <div id="plot-budget" class="plot"></div>
+  <div class="table-wrap" id="table-budget"></div>
+</section>
+
+</main>
+
+</div>
+
+<footer>
+  Introductory Microeconomics, Fall 2026. Tools are added one at a time as the course proceeds.
+</footer>
+
+<script>
+// ----------------------------------------------------------------------
+// Shared slider machinery. Each tool declares its parameters (default,
+// range, step, label) and a draw function; makeControls builds one slider
+// per parameter, keeps a local copy of the values, and redraws on input.
+// ----------------------------------------------------------------------
+function makeControls(container, specs, onChange) {
+  container.innerHTML = "";
+  const local = {};
+  Object.keys(specs).forEach(k => { local[k] = specs[k].value; });
+  Object.keys(specs).forEach(k => {
+    const s = specs[k];
+    const div = document.createElement("div");
+    div.className = "control";
+    div.innerHTML =
+      "<label><span class=\"symbol\">" + s.label + "</span> " +
+      "<span class=\"value\">" + fmt(local[k], s.fmt) + "</span></label>" +
+      "<input type=\"range\" min=\"" + s.min + "\" max=\"" + s.max +
+      "\" step=\"" + s.step + "\" value=\"" + local[k] + "\">";
+    container.appendChild(div);
+    const input = div.querySelector("input");
+    const valEl = div.querySelector(".value");
+    input.addEventListener("input", e => {
+      local[k] = parseFloat(e.target.value);
+      valEl.textContent = fmt(local[k], s.fmt);
+      onChange(local);
+    });
+  });
+  const resetDiv = document.createElement("div");
+  resetDiv.className = "control";
+  resetDiv.innerHTML =
+    "<label>&nbsp;</label><button class=\"reset-btn\">Reset to defaults</button>";
+  container.appendChild(resetDiv);
+  resetDiv.querySelector("button").addEventListener("click", () => {
+    const inputs = container.querySelectorAll("input[type=range]");
+    const values = container.querySelectorAll(".value");
+    Object.keys(specs).forEach((k, i) => {
+      local[k] = specs[k].value;
+      inputs[i].value = specs[k].value;
+      values[i].textContent = fmt(local[k], specs[k].fmt);
+    });
+    onChange(local);
+  });
+  onChange(local);
+}
+
+function fmt(v, digits) {
+  return "$" + v.toFixed(digits);
+}
+
+function fmtQty(v) {
+  // integers print as integers; otherwise two decimals
+  return Math.abs(v - Math.round(v)) < 1e-9 ? String(Math.round(v)) : v.toFixed(2);
+}
+
+// ----------------------------------------------------------------------
+// Tool 1: budget line. Burgers on the horizontal axis, cans of soda on
+// the vertical axis. Budget I, prices Pb and Ps. The line is
+// Pb * burgers + Ps * soda = I, with intercepts I/Pb and I/Ps.
+// Axes are fixed (0 to AXIS_MAX) so that a change in the budget or a
+// price visibly moves the line instead of rescaling the picture.
+// ----------------------------------------------------------------------
+const AXIS_MAX = 20;
+
+const BUDGET_SPECS = {
+  I:  { label: "Budget",               value: 10, min: 1,   max: 20, step: 1,    fmt: 0 },
+  Pb: { label: "Price of a burger",     value: 2,  min: 0.5, max: 5,  step: 0.25, fmt: 2 },
+  Ps: { label: "Price of a can of soda", value: 1,  min: 0.5, max: 5,  step: 0.25, fmt: 2 }
+};
+
+function drawBudget(p) {
+  const xInt = p.I / p.Pb;   // burgers if all spent on burgers
+  const yInt = p.I / p.Ps;   // cans of soda if all spent on soda
+
+  const traces = [
+    {
+      // feasible set: triangle (0,0), (xInt,0), (0,yInt), clipped by the axes
+      x: [0, xInt, 0, 0], y: [0, 0, yInt, 0],
+      fill: "toself", fillcolor: "rgba(37, 99, 235, 0.30)",
+      mode: "lines", line: { width: 0 },
+      hoverinfo: "skip", name: "Affordable (feasible)", showlegend: true
+    },
+    {
+      x: [xInt, 0], y: [0, yInt],
+      mode: "lines", name: "Budget line",
+      line: { color: "#012169", width: 4 },
+      hovertemplate: "%{x:.2f} burgers, %{y:.2f} cans<extra></extra>"
+    },
+    {
+      x: [xInt, 0], y: [0, yInt],
+      mode: "markers+text", showlegend: false,
+      marker: { color: "#012169", size: 9 },
+      text: [fmtQty(xInt) + " burgers", fmtQty(yInt) + " cans"],
+      textposition: ["top right", "top right"],
+      textfont: { color: "#012169", size: 12 },
+      hoverinfo: "skip"
+    }
+  ];
+
+  const layout = {
+    margin: { l: 60, r: 30, t: 30, b: 60 },
+    xaxis: { title: "Burgers", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
+    yaxis: { title: "Cans of soda", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
+    showlegend: true,
+    legend: { orientation: "h", y: -0.18 },
+    annotations: [
+      {
+        text: "Not affordable",
+        x: 0.72 * AXIS_MAX, y: 0.82 * AXIS_MAX, showarrow: false,
+        font: { color: "#6b7280", size: 13 }
+      },
+      {
+        text: "Affordable",
+        x: Math.min(xInt, AXIS_MAX) * 0.25, y: Math.min(yInt, AXIS_MAX) * 0.25,
+        showarrow: false, font: { color: "#012169", size: 13 }
+      }
+    ]
+  };
+
+  Plotly.react("plot-budget", traces, layout, { responsive: true, displayModeBar: false });
+
+  // readouts: the equation and the two intercepts
+  document.getElementById("readouts-budget").innerHTML =
+    "<div class=\"item\">Budget line: <span class=\"equation\">" +
+      fmt(p.Pb, 2) + " &times; burgers + " + fmt(p.Ps, 2) + " &times; soda = " + fmt(p.I, 0) +
+    "</span></div>" +
+    "<div class=\"item\">All on burgers: <span class=\"big\">" + fmtQty(xInt) +
+      "</span> burgers, 0 cans</div>" +
+    "<div class=\"item\">All on soda: <span class=\"big\">" + fmtQty(yInt) +
+      "</span> cans, 0 burgers</div>";
+
+  // the slide's table: for each whole number of burgers, what is left for soda
+  const maxB = Math.floor(xInt + 1e-9);
+  let rows = "";
+  for (let b = 0; b <= maxB; b++) {
+    const spent = b * p.Pb;
+    const left = p.I - spent;
+    rows += "<tr><td>" + fmt(p.I, 0) + "</td><td>" + b + "</td><td>" + fmt(spent, 2) +
+            "</td><td>" + fmt(left, 2) + "</td><td>" + fmtQty(left / p.Ps) + "</td></tr>";
+  }
+  document.getElementById("table-budget").innerHTML =
+    "<table class=\"bundle\"><thead><tr><th>Budget</th><th>Burgers</th>" +
+    "<th>Spent on burgers</th><th>Left for soda</th><th>Cans of soda</th></tr></thead>" +
+    "<tbody>" + rows + "</tbody></table>";
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  makeControls(document.getElementById("ctrl-budget"), BUDGET_SPECS, drawBudget);
+});
+</script>
+
+</body>
+</html>
