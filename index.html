@@ -163,7 +163,7 @@
   .entry-layout {
     display: grid;
     grid-template-columns: max-content minmax(0, 1fr);
-    gap: 0.5em 1.2em;
+    gap: 0.5em 0.6em;
     align-items: start;
   }
   .entry-layout .plot { min-width: 0; }
@@ -174,13 +174,13 @@
     background: var(--bg);
     border-radius: 6px;
   }
-  table.entry th, table.entry td { padding: 0.3em 0.5em; text-align: center; }
-  table.entry th { color: var(--primary); font-weight: 600; }
+  table.entry th, table.entry td { padding: 0.3em 0.3em; text-align: center; }
+  table.entry th { color: var(--primary); font-weight: 600; max-width: 5em; white-space: normal; line-height: 1.2; }
   table.entry td.idx { color: var(--muted); font-size: 0.85em; }
   /* Plain text boxes (inputmode=decimal): no spinner arrows */
   table.entry input.num {
-    width: 6em;
-    padding: 0.25em 0.4em;
+    width: 4em;
+    padding: 0.25em 0.3em;
     border: 1px solid var(--border);
     border-radius: 4px;
     font-size: 1em;
@@ -666,7 +666,7 @@ function drawExperiment(cfg) {
       x: rows.map(r => r.q), y: rows.map(r => r.p),
       mode: "lines+markers+text",
       line: { color: "#012169", width: 3 },
-      marker: { color: "#012169", size: 10 },
+      marker: { color: "#111", size: 9 },
       text: rows.map(r => "$" + fmtQty(r.p)),
       textposition: "top right",
       textfont: { color: "#012169", size: 12 },
@@ -755,7 +755,7 @@ function drawMove(c) {
     { x: [Q, Q, null, 0, Q], y: [0, P, null, P, P], mode: "lines",
       line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" },
     { x: [Q], y: [P], mode: "markers",
-      marker: { size: 14, color: "#fff", line: { color: "#012169", width: 3 } },
+      marker: { size: 9, color: "#111" },
       hovertemplate: "P = %{y}, Q = %{x}<extra></extra>" }
   ];
   const annotations = dsAxisArrows(null, null).concat([
@@ -845,7 +845,7 @@ function drawEquilibrium() {
                   line: { color: EQ_RED, width: 6 }, hoverinfo: "skip" });
   }
   traces.push({ x: [Qd, Qs], y: [P, P], mode: "markers",
-                marker: { size: 13, color: "#fff", line: { color: "#012169", width: 3 } },
+                marker: { size: 9, color: "#111" },
                 hoverinfo: "skip" });
 
   const annotations = dsAxisArrows("Q", "P").concat([
