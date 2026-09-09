@@ -11,7 +11,7 @@ so the chapter list is not exhaustive.
 
 | Chapter | Anchor | Tool | Inputs (defaults) |
 |---|---|---|---|
-| 1 | `#budget-line` | Budget line | budget $10, burger $2, can of soda $1 |
+| 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2, can of soda $1 (0.5 to 5); axes fixed at 10 burgers by 15 cans |
 
 ## Architecture
 
