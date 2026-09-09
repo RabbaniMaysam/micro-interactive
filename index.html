@@ -648,20 +648,20 @@ function drawMove() {
 function drawShift() {
   const s = parseFloat(document.getElementById("knob-shift").value);
   const traces = [dsLine(0, "#111")];
-  // D1 sits just below the lower end of the black line; D2 (when shown)
-  // just above the lower end of the blue line, so the two never collide
-  // even for a tiny shift.
+  // D1 and D2 sit at the same height, right beside the lower end of their
+  // lines. For a shift too small for the two labels to fit side by side,
+  // D2 is omitted (the D-arrow label still marks the blue line).
+  const endLabel = (text, x, color) => ({
+    text: text, x: x, y: DS_P0, xanchor: "left", yanchor: "middle", xshift: 4,
+    showarrow: false, font: { color: color, size: 15 }
+  });
   const annotations = dsAxisArrows("Q", "P").concat([
-    { text: "D<sub>1</sub>", x: DS_Q1, y: DS_P0, xanchor: "left", yanchor: "top",
-      xshift: 6, yshift: 2, showarrow: false, font: { color: "#111", size: 15 } }
+    endLabel("D<sub>1</sub>", DS_Q1, "#111")
   ]);
   if (s !== 0) {
     // The blue line exists only once the knob leaves the center.
     traces.push(dsLine(s, "#2563eb"));
-    annotations.push({
-      text: "D<sub>2</sub>", x: DS_Q1 + s, y: DS_P0, xanchor: "left", yanchor: "bottom",
-      xshift: 6, yshift: -2, showarrow: false, font: { color: "#2563eb", size: 15 }
-    });
+    if (Math.abs(s) >= 7) annotations.push(endLabel("D<sub>2</sub>", DS_Q1 + s, "#2563eb"));
     // arrow from the midpoint of the old line to the midpoint of the new one
     const qm = (DS_Q0 + DS_Q1) / 2, pm = (DS_P0 + DS_P1) / 2;
     annotations.push({
