@@ -10,8 +10,6 @@
     --primary: #012169;
     --secondary: #f2a900;
     --accent: #525252;
-    --feasible: #cfe0f7;
-    --feasible-edge: #012169;
     --bg: #fafafa;
     --panel: #ffffff;
     --border: #e5e7eb;
@@ -31,29 +29,9 @@
   header {
     background: var(--primary);
     color: white;
-    padding: 1.5em 2em;
+    padding: 1.2em 2em;
   }
   header h1 { margin: 0; font-size: 1.4em; font-weight: 600; }
-  header p { margin: 0.4em 0 0 0; font-size: 0.9em; opacity: 0.9; }
-  nav {
-    background: white;
-    border-bottom: 1px solid var(--border);
-    padding: 0.5em 2em;
-    overflow-x: auto;
-    white-space: nowrap;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-  nav a {
-    color: var(--primary);
-    text-decoration: none;
-    margin-right: 1em;
-    font-size: 0.85em;
-    padding: 0.3em 0.6em;
-    border-radius: 4px;
-  }
-  nav a:hover { background: var(--bg); }
 
   .layout {
     display: grid;
@@ -61,13 +39,13 @@
     gap: 1.5em;
     max-width: 1400px;
     margin: 0 auto;
-    padding: 2em;
+    padding: 1.5em 2em;
   }
   aside.sidebar {
     position: sticky;
-    top: 4em;
+    top: 1em;
     align-self: start;
-    max-height: calc(100vh - 5em);
+    max-height: calc(100vh - 2em);
     overflow-y: auto;
     background: var(--panel);
     border: 1px solid var(--border);
@@ -99,18 +77,21 @@
   aside.sidebar li { margin: 0.25em 0; }
   aside.sidebar a { color: var(--primary); text-decoration: none; }
   aside.sidebar a:hover { text-decoration: underline; }
+  aside.sidebar a.active { font-weight: 600; text-decoration: underline; }
 
   main { min-width: 0; }
+  /* One tool page is visible at a time; the hash in the URL selects it */
+  .tool-page { display: none; }
+  .tool-page.active { display: block; }
   .group-heading {
     font-size: 1.1em;
     color: var(--primary);
     text-transform: uppercase;
     letter-spacing: 0.05em;
-    margin: 1.5em 0 0.4em 0;
+    margin: 0 0 0.4em 0;
     padding-bottom: 0.4em;
     border-bottom: 2px solid var(--border);
   }
-  .group-heading:first-child { margin-top: 0; }
   .tool-card {
     background: var(--panel);
     border: 1px solid var(--border);
@@ -163,15 +144,43 @@
     font-size: 0.85em;
   }
   .reset-btn:hover { background: var(--primary); color: white; }
-  footer {
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.85em;
-    padding: 2em;
+
+  /* Table-plus-figure tools: a compact entry table beside a large figure */
+  .entry-layout {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 0.5em 1.2em;
+    align-items: start;
   }
+  .entry-layout .plot { min-width: 0; }
+  table.entry {
+    border-collapse: collapse;
+    font-size: 0.95em;
+    font-variant-numeric: tabular-nums;
+    background: var(--bg);
+    border-radius: 6px;
+  }
+  table.entry th, table.entry td { padding: 0.3em 0.5em; text-align: center; }
+  table.entry th { color: var(--primary); font-weight: 600; }
+  table.entry td.idx { color: var(--muted); font-size: 0.85em; }
+  table.entry input[type=number] {
+    width: 6em;
+    padding: 0.25em 0.4em;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: 1em;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.entry input[type=number]:focus {
+    outline: 2px solid var(--primary);
+    border-color: var(--primary);
+  }
+  table.entry td.actions { padding-top: 0.6em; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     aside.sidebar { position: static; max-height: none; }
+    .entry-layout { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -181,11 +190,6 @@
   <h1>Introductory Microeconomics: Interactive Tools</h1>
 </header>
 
-<nav>
-  <span style="color:var(--muted); font-size:0.85em; margin-right:0.5em;">Chapters:</span>
-  <a href="#chapter-1">Chapter 1</a>
-</nav>
-
 <div class="layout">
 
 <aside class="sidebar">
@@ -194,17 +198,33 @@
   <ul>
     <li><a href="#budget-line">Budget line</a></li>
   </ul>
+  <div class="chapter">Chapter 3: Demand, supply, and market equilibrium</div>
+  <ul>
+    <li><a href="#demand-experiment">Demand experiment</a></li>
+  </ul>
 </aside>
 
 <main>
 
-<h2 class="group-heading" id="chapter-1">Chapter 1: Limits, alternatives, and choices</h2>
+<div class="tool-page" id="budget-line">
+  <h2 class="group-heading">Chapter 1: Limits, alternatives, and choices</h2>
+  <section class="tool-card">
+    <h2>Budget line</h2>
+    <div class="controls" id="ctrl-budget"></div>
+    <div id="plot-budget" class="plot"></div>
+  </section>
+</div>
 
-<section class="tool-card" id="budget-line">
-  <h2>Budget line</h2>
-  <div class="controls" id="ctrl-budget"></div>
-  <div id="plot-budget" class="plot"></div>
-</section>
+<div class="tool-page" id="demand-experiment">
+  <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
+  <section class="tool-card">
+    <h2>Demand experiment: would you buy the flagship iPhone at this price?</h2>
+    <div class="entry-layout">
+      <table class="entry" id="table-demand"></table>
+      <div id="plot-demand" class="plot"></div>
+    </div>
+  </section>
+</div>
 
 </main>
 
@@ -212,9 +232,30 @@
 
 <script>
 // ----------------------------------------------------------------------
+// Page routing. Each tool lives in its own .tool-page; the URL hash names
+// the visible one (default: the first). Plotly cannot size a figure inside
+// a hidden element, so every tool registers a redraw function in TOOLS
+// and the router calls it after showing the page.
+// ----------------------------------------------------------------------
+const TOOLS = {};
+
+function showTool(id) {
+  const pages = document.querySelectorAll(".tool-page");
+  if (!document.getElementById(id) || !document.getElementById(id).classList.contains("tool-page")) {
+    id = pages[0].id;
+  }
+  pages.forEach(pg => pg.classList.toggle("active", pg.id === id));
+  document.querySelectorAll("aside.sidebar a").forEach(a => {
+    a.classList.toggle("active", a.getAttribute("href") === "#" + id);
+  });
+  if (TOOLS[id]) TOOLS[id]();
+}
+
+// ----------------------------------------------------------------------
 // Shared slider machinery. Each tool declares its parameters (default,
 // range, step, label) and a draw function; makeControls builds one slider
 // per parameter, keeps a local copy of the values, and redraws on input.
+// Returns a function that redraws with the current values.
 // ----------------------------------------------------------------------
 function makeControls(container, specs, onChange) {
   container.innerHTML = "";
@@ -252,7 +293,7 @@ function makeControls(container, specs, onChange) {
     });
     onChange(local);
   });
-  onChange(local);
+  return () => onChange(local);
 }
 
 function fmt(v, digits) {
@@ -311,8 +352,26 @@ function drawBudget(p) {
     }
   ];
 
+  const margin = { l: 60, r: 30, t: 30, b: 60 };
+
+  // "Budget line" label: centered on the visible part of the line and
+  // rotated to its on-screen slope, so it follows the line as the sliders
+  // move. The angle depends on the plot area's pixel size, read from the
+  // container (Plotly's plot area is the container minus the margins).
+  const div = document.getElementById("plot-budget");
+  const w = Math.max(1, div.clientWidth - margin.l - margin.r);
+  const h = Math.max(1, div.clientHeight - margin.t - margin.b);
+  const xLo = yInt > Y_MAX ? xInt * (1 - Y_MAX / yInt) : 0;   // where the line enters at the top
+  const xHi = Math.min(xInt, X_MAX);                           // where it leaves at the right or bottom
+  const xMid = (xLo + xHi) / 2;
+  const yMid = yInt * (1 - xMid / xInt);
+  const dx = (xInt / X_MAX) * w, dy = (yInt / Y_MAX) * h;      // line direction in pixels (y down)
+  const len = Math.hypot(dx, dy);
+  const angle = Math.atan2(dy, dx) * 180 / Math.PI;            // clockwise from horizontal
+  const off = 12;                                              // pixels above the line
+
   const layout = {
-    margin: { l: 60, r: 30, t: 30, b: 60 },
+    margin: margin,
     xaxis: { title: "Burgers", range: [0, X_MAX], fixedrange: true, zeroline: true },
     yaxis: { title: "Cans of soda", range: [0, Y_MAX], fixedrange: true, zeroline: true },
     showlegend: false,
@@ -321,6 +380,13 @@ function drawBudget(p) {
         text: "Affordable",
         x: Math.min(xInt, X_MAX) * 0.25, y: Math.min(yInt, Y_MAX) * 0.25,
         showarrow: false, font: { color: "#012169", size: 13 }
+      },
+      {
+        text: "Budget line",
+        x: xMid, y: yMid, showarrow: false,
+        textangle: angle,
+        xshift: off * dy / len, yshift: off * dx / len,
+        font: { color: "#012169", size: 14 }
       }
     ]
   };
@@ -338,8 +404,100 @@ function drawBudget(p) {
   Plotly.react("plot-budget", traces, layout, { responsive: true, displayModeBar: false });
 }
 
+// ----------------------------------------------------------------------
+// Tool 2: demand experiment. The instructor names a price, students vote
+// yes or no, and the percentage saying yes is the quantity sold in a room
+// of 100. Five rows of price and quantity are typed in during class; the
+// points appear in the figure as they are typed and are connected in row
+// order. Quantity is on the horizontal axis (0 to 100), price on the
+// vertical axis (rescaled to the largest price entered).
+// ----------------------------------------------------------------------
+const DEMAND_ROWS = 5;
+const DEMAND_P_DEFAULT_MAX = 2000;
+
+function buildDemandTable() {
+  const table = document.getElementById("table-demand");
+  let html = "<thead><tr><th></th><th>Price ($)</th><th>Quantity (of 100)</th></tr></thead><tbody>";
+  for (let i = 0; i < DEMAND_ROWS; i++) {
+    html += "<tr><td class=\"idx\">" + (i + 1) + "</td>" +
+      "<td><input type=\"number\" min=\"0\" step=\"1\" data-row=\"" + i + "\" data-col=\"p\"></td>" +
+      "<td><input type=\"number\" min=\"0\" max=\"100\" step=\"1\" data-row=\"" + i + "\" data-col=\"q\"></td></tr>";
+  }
+  html += "<tr><td></td><td class=\"actions\" colspan=\"2\">" +
+          "<button class=\"reset-btn\" id=\"clear-demand\">Clear</button></td></tr></tbody>";
+  table.innerHTML = html;
+  table.querySelectorAll("input").forEach(inp => inp.addEventListener("input", drawDemand));
+  document.getElementById("clear-demand").addEventListener("click", () => {
+    table.querySelectorAll("input").forEach(inp => { inp.value = ""; });
+    drawDemand();
+    const first = table.querySelector("input");
+    if (first) first.focus();
+  });
+}
+
+function readDemandRows() {
+  const table = document.getElementById("table-demand");
+  const rows = [];
+  for (let i = 0; i < DEMAND_ROWS; i++) {
+    const p = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"p\"]").value;
+    const q = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"q\"]").value;
+    if (p === "" || q === "") continue;
+    const pv = parseFloat(p), qv = parseFloat(q);
+    if (!isFinite(pv) || !isFinite(qv)) continue;
+    rows.push({ p: pv, q: qv });
+  }
+  return rows;
+}
+
+function drawDemand() {
+  const rows = readDemandRows();
+  const pMax = rows.length ? Math.max(...rows.map(r => r.p)) : 0;
+  const yTop = Math.max(pMax * 1.15, pMax > 0 ? 0 : DEMAND_P_DEFAULT_MAX);
+
+  const traces = [
+    {
+      x: rows.map(r => r.q), y: rows.map(r => r.p),
+      mode: "lines+markers+text",
+      line: { color: "#012169", width: 3 },
+      marker: { color: "#012169", size: 10 },
+      text: rows.map(r => "$" + fmtQty(r.p)),
+      textposition: "top right",
+      textfont: { color: "#012169", size: 12 },
+      cliponaxis: false,
+      hovertemplate: "Price $%{y}, quantity %{x}<extra></extra>"
+    }
+  ];
+
+  const layout = {
+    margin: { l: 70, r: 60, t: 30, b: 60 },
+    xaxis: { title: "Quantity (phones sold in a room of 100)", range: [0, 100],
+             fixedrange: true, zeroline: true, dtick: 10 },
+    yaxis: { title: "Price ($)", range: [0, yTop], fixedrange: true, zeroline: true },
+    showlegend: false
+  };
+
+  Plotly.react("plot-demand", traces, layout, { responsive: true, displayModeBar: false });
+}
+
 window.addEventListener("DOMContentLoaded", () => {
-  makeControls(document.getElementById("ctrl-budget"), BUDGET_SPECS, drawBudget);
+  TOOLS["budget-line"] =
+    makeControls(document.getElementById("ctrl-budget"), BUDGET_SPECS, drawBudget);
+  buildDemandTable();
+  TOOLS["demand-experiment"] = drawDemand;
+
+  showTool(location.hash.replace("#", ""));
+  window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
+
+  // Redraw the visible tool when the window is resized: rotated labels
+  // depend on the plot's pixel size.
+  let resizeTimer = null;
+  window.addEventListener("resize", () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(() => {
+      const active = document.querySelector(".tool-page.active");
+      if (active && TOOLS[active.id]) TOOLS[active.id]();
+    }, 150);
+  });
 });
 </script>
 

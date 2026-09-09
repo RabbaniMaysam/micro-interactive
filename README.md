@@ -12,9 +12,15 @@ so the chapter list is not exhaustive.
 | Chapter | Anchor | Tool | Inputs (defaults) |
 |---|---|---|---|
 | 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2 (1 to 4), can of soda $1 (0.5 to 2); axes fixed at 10 burgers by 15 cans |
+| 3 | `#demand-experiment` | Demand experiment | five empty rows of price and quantity (0 to 100), typed in class; points plotted and connected in row order |
 
 Slider ranges: a price runs from half to twice its default; the figure
 height is 420px (the user found 600px too tall).
+
+Each tool is a page of its own: the sidebar link sets the URL hash, the
+router shows that `.tool-page` and hides the others, and calls the tool's
+redraw function (Plotly cannot size a figure inside a hidden element).
+The first tool is shown when the hash is empty or unknown.
 
 ## Architecture
 
