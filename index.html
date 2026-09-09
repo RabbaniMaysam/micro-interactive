@@ -112,46 +112,45 @@
     border-bottom: 2px solid var(--border);
   }
   .group-heading:first-child { margin-top: 0; }
-  .group-intro {
-    color: var(--muted);
-    font-size: 0.9em;
-    margin: 0 0 1.2em 0;
-  }
   .tool-card {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 8px;
     margin-bottom: 2em;
-    padding: 1.5em;
+    padding: 1em 1.2em;
   }
   .tool-card h2 {
     margin: 0 0 0.4em 0;
     font-size: 1.2em;
     color: var(--primary);
   }
-  .tool-card .subtitle {
-    color: var(--muted);
-    font-size: 0.9em;
-    margin-bottom: 1em;
-  }
-  .tool-card .summary {
-    margin: 0.5em 0 1em 0;
-    font-size: 0.95em;
-  }
   .controls {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 0.6em 1em;
-    margin-bottom: 1em;
-    padding: 0.8em;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 0.4em 1.2em;
+    margin-bottom: 0.6em;
+    padding: 0.5em 0.8em;
     background: var(--bg);
     border-radius: 6px;
   }
-  .control { display: flex; flex-direction: column; }
+  .control { display: flex; flex-direction: column; flex: 1 1 160px; max-width: 260px; }
+  .control.reset { flex: 0 0 auto; }
   .control label {
     font-size: 0.85em;
     color: var(--muted);
-    margin-bottom: 0.2em;
+    margin-bottom: 0.1em;
+    white-space: nowrap;
+  }
+  .tool-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) max-content;
+    gap: 0.5em 1em;
+    align-items: start;
+  }
+  .tool-body .plot { min-width: 0; }
+  @media (max-width: 1100px) {
+    .tool-body { grid-template-columns: 1fr; }
   }
   .control .symbol {
     font-weight: 600;
@@ -164,51 +163,25 @@
     font-variant-numeric: tabular-nums;
   }
   .control input[type=range] { width: 100%; accent-color: var(--primary); }
-  .plot { width: 100%; height: 480px; }
-  .equation {
-    font-family: "Cambria Math", Cambria, Georgia, serif;
-    color: var(--accent);
-    background: var(--bg);
-    padding: 0.4em 0.7em;
-    border-radius: 4px;
-    display: inline-block;
-    margin: 0.2em 0;
-  }
-  .readouts {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 0.6em 1em;
-    margin: 0.8em 0;
-    font-size: 0.95em;
-  }
-  .readouts .item {
-    background: var(--bg);
-    border-radius: 6px;
-    padding: 0.6em 0.8em;
-  }
-  .readouts .item .big {
-    font-size: 1.3em;
-    font-weight: 600;
-    color: var(--primary);
-    font-variant-numeric: tabular-nums;
-  }
+  .plot { width: 100%; height: 600px; }
   table.bundle {
     border-collapse: collapse;
-    font-size: 0.9em;
-    margin-top: 0.6em;
+    font-size: 0.85em;
+    margin-top: 0.4em;
     font-variant-numeric: tabular-nums;
   }
   table.bundle th, table.bundle td {
     border-bottom: 1px solid var(--border);
-    padding: 0.3em 0.9em;
+    padding: 0.2em 0.6em;
     text-align: right;
+    white-space: nowrap;
   }
   table.bundle th {
     color: var(--primary);
     font-weight: 600;
     border-bottom: 2px solid var(--border);
   }
-  .table-wrap { overflow-x: auto; }
+  .table-wrap { overflow: visible; }
   .reset-btn {
     background: white;
     border: 1px solid var(--primary);
@@ -235,7 +208,6 @@
 
 <header>
   <h1>Introductory Microeconomics: Interactive Tools</h1>
-  <p>Pick a chapter, open a tool, and move the sliders. The figure responds as you move them.</p>
 </header>
 
 <nav>
@@ -256,33 +228,19 @@
 <main>
 
 <h2 class="group-heading" id="chapter-1">Chapter 1: Limits, alternatives, and choices</h2>
-<p class="group-intro">
-  Individuals have endless desires but a limited budget. The tools in this chapter
-  show what that limit looks like.
-</p>
 
 <section class="tool-card" id="budget-line">
   <h2>Budget line</h2>
-  <div class="subtitle">You have a budget and can spend it on burgers or cans of soda</div>
-  <p class="summary">
-    Every combination of burgers and soda that costs exactly your budget lies on
-    the thick line. Combinations below the line are affordable (shaded); those
-    above it cost more than you have. Move the sliders to change the budget and
-    the two prices.
-  </p>
   <div class="controls" id="ctrl-budget"></div>
-  <div class="readouts" id="readouts-budget"></div>
-  <div id="plot-budget" class="plot"></div>
-  <div class="table-wrap" id="table-budget"></div>
+  <div class="tool-body">
+    <div id="plot-budget" class="plot"></div>
+    <div class="table-wrap" id="table-budget"></div>
+  </div>
 </section>
 
 </main>
 
 </div>
-
-<footer>
-  Introductory Microeconomics, Fall 2026. Tools are added one at a time as the course proceeds.
-</footer>
 
 <script>
 // ----------------------------------------------------------------------
@@ -313,9 +271,8 @@ function makeControls(container, specs, onChange) {
     });
   });
   const resetDiv = document.createElement("div");
-  resetDiv.className = "control";
-  resetDiv.innerHTML =
-    "<label>&nbsp;</label><button class=\"reset-btn\">Reset to defaults</button>";
+  resetDiv.className = "control reset";
+  resetDiv.innerHTML = "<button class=\"reset-btn\">Reset</button>";
   container.appendChild(resetDiv);
   resetDiv.querySelector("button").addEventListener("click", () => {
     const inputs = container.querySelectorAll("input[type=range]");
@@ -403,31 +360,25 @@ function drawBudget(p) {
     ]
   };
 
-  Plotly.react("plot-budget", traces, layout, { responsive: true, displayModeBar: false });
-
-  // readouts: the equation and the two intercepts
-  document.getElementById("readouts-budget").innerHTML =
-    "<div class=\"item\">Budget line: <span class=\"equation\">" +
-      fmt(p.Pb, 2) + " &times; burgers + " + fmt(p.Ps, 2) + " &times; soda = " + fmt(p.I, 0) +
-    "</span></div>" +
-    "<div class=\"item\">All on burgers: <span class=\"big\">" + fmtQty(xInt) +
-      "</span> burgers, 0 cans</div>" +
-    "<div class=\"item\">All on soda: <span class=\"big\">" + fmtQty(yInt) +
-      "</span> cans, 0 burgers</div>";
-
-  // the slide's table: for each whole number of burgers, what is left for soda
+  // The table is written before the plot so that the plot's column is
+  // already narrowed when Plotly measures it; a resize afterwards handles
+  // any change in the table's width.
   const maxB = Math.floor(xInt + 1e-9);
   let rows = "";
   for (let b = 0; b <= maxB; b++) {
     const spent = b * p.Pb;
     const left = p.I - spent;
-    rows += "<tr><td>" + fmt(p.I, 0) + "</td><td>" + b + "</td><td>" + fmt(spent, 2) +
+    rows += "<tr><td>" + b + "</td><td>" + fmt(spent, 2) +
             "</td><td>" + fmt(left, 2) + "</td><td>" + fmtQty(left / p.Ps) + "</td></tr>";
   }
   document.getElementById("table-budget").innerHTML =
-    "<table class=\"bundle\"><thead><tr><th>Budget</th><th>Burgers</th>" +
+    "<table class=\"bundle\"><thead><tr><th>Burgers</th>" +
     "<th>Spent on burgers</th><th>Left for soda</th><th>Cans of soda</th></tr></thead>" +
     "<tbody>" + rows + "</tbody></table>";
+
+  const plotDiv = document.getElementById("plot-budget");
+  Plotly.react(plotDiv, traces, layout, { responsive: true, displayModeBar: false })
+    .then(() => Plotly.Plots.resize(plotDiv));
 }
 
 window.addEventListener("DOMContentLoaded", () => {
