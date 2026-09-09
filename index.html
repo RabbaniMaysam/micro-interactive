@@ -73,11 +73,25 @@
     border-top: none;
     padding-top: 0;
   }
-  aside.sidebar ul { list-style: none; margin: 0.3em 0 0 0; padding: 0 0 0 1.2em; }
-  aside.sidebar li { margin: 0.25em 0; }
-  aside.sidebar a { color: var(--primary); text-decoration: none; }
-  aside.sidebar a:hover { text-decoration: underline; }
-  aside.sidebar a.active { font-weight: 600; text-decoration: underline; }
+  aside.sidebar ul { list-style: none; margin: 0.3em 0 0 0; padding: 0 0 0 0.8em; }
+  aside.sidebar li { margin: 0.15em 0; }
+  /* Items: lighter blue by default; the active one is bold, dark blue, on
+     a pale blue bar with a solid left edge */
+  aside.sidebar a {
+    display: block;
+    color: #5b7fc7;
+    text-decoration: none;
+    padding: 0.25em 0.6em;
+    border-left: 3px solid transparent;
+    border-radius: 0 4px 4px 0;
+  }
+  aside.sidebar a:hover { color: var(--primary); background: var(--bg); }
+  aside.sidebar a.active {
+    color: var(--primary);
+    font-weight: 700;
+    background: #e3ecfb;
+    border-left-color: var(--primary);
+  }
 
   main { min-width: 0; }
   /* One tool page is visible at a time; the hash in the URL selects it */
