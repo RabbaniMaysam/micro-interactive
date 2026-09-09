@@ -11,7 +11,10 @@ so the chapter list is not exhaustive.
 
 | Chapter | Anchor | Tool | Inputs (defaults) |
 |---|---|---|---|
-| 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2, can of soda $1 (0.5 to 5); axes fixed at 10 burgers by 15 cans |
+| 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2 (1 to 4), can of soda $1 (0.5 to 2); axes fixed at 10 burgers by 15 cans |
+
+Slider ranges: a price runs from half to twice its default; the figure
+height is 420px (the user found 600px too tall).
 
 ## Architecture
 
