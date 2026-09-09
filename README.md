@@ -23,11 +23,17 @@ rail with a reset button) copies the interactive companion site of the
 Amazon paper (`RabbaniMaysam/amazon-interactive`).
 
 Adding a tool: add a `<section class="tool-card" id="...">` under the
-chapter's heading with a `controls` div, a `plot` div, and any readouts;
-declare its slider specs (`label`, `value`, `min`, `max`, `step`, `fmt`)
-and a draw function; register it in the `DOMContentLoaded` handler with
-`makeControls`. Add the anchor to the sidebar list and, for a new chapter,
-a link in the top nav.
+chapter's heading with a `controls` div and a `plot` div; declare its
+slider specs (`label`, `value`, `min`, `max`, `step`, `fmt`) and a draw
+function; register it in the `DOMContentLoaded` handler with
+`makeControls`. Add the anchor to the sidebar list under its chapter
+(chapters are plain labels, tools are links) and, for a new chapter, a
+link in the top nav.
+
+House style (the user's, September 8, 2026): no prose on the page beyond
+titles. No introductions, descriptions, equations, readouts, tables, or
+legends. A tool is one compact slider row and one large figure; labels
+live inside the figure.
 
 ## Publishing
 
