@@ -833,34 +833,57 @@ function drawEquilibrium() {
   const Qd = d.qAt(P), Qs = s.qAt(P);
   const gap = Qs - Qd;                       // positive: surplus; negative: shortage
   const qLo = Math.min(Qd, Qs), qHi = Math.max(Qd, Qs);
+  // The equilibrium (where P = 105 - Q meets P = Q + 5) stays marked
+  // whatever the knob says (user request, September 9, 2026): gray point,
+  // gray dotted guides, and P_e and Q_e in an outer column and row of the
+  // axis labels, so the moving P and Q readings never print over them.
+  const EQ_Q = 50, EQ_P = 55, GRAY = "#6b7280";
 
   const traces = [
     dsLine(d, 0, "#111"),
     dsLine(s, 0, "#111"),
+    { x: [0, EQ_Q, EQ_Q], y: [EQ_P, EQ_P, 0],
+      mode: "lines", line: { color: "#9ca3af", width: 1.5, dash: "dot" }, hoverinfo: "skip" },
     // dotted guides: horizontal at P to the farther point, vertical under each point
     { x: [0, qHi, null, Qd, Qd, null, Qs, Qs], y: [P, P, null, 0, P, null, 0, P],
-      mode: "lines", line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" }
+      mode: "lines", line: { color: GRAY, width: 1.5, dash: "dot" }, hoverinfo: "skip" }
   ];
   if (gap !== 0 && labels) {
     traces.push({ x: [qLo, qHi], y: [P, P], mode: "lines",
                   line: { color: EQ_RED, width: 6 }, hoverinfo: "skip" });
   }
+  if (gap !== 0) {
+    traces.push({ x: [EQ_Q], y: [EQ_P], mode: "markers",
+                  marker: { size: 7, color: GRAY }, hoverinfo: "skip" });
+  }
   traces.push({ x: [Qd, Qs], y: [P, P], mode: "markers",
                 marker: { size: 9, color: "#111" },
                 hoverinfo: "skip" });
 
+  // When Qd and Qs are within 14 units the two moving labels would overlap,
+  // so the lower one is anchored to the right of its guide and the upper
+  // one to the left (they then read outward from the pair of points).
+  const tight = gap !== 0 && qHi - qLo < 14;
+  const qLabel = (text, x, row = 0, color = "#012169") => ({
+    text: text, x: x, y: 0, yanchor: "top", yshift: -6 - 18 * row,
+    xanchor: tight && row === 0 ? (x === qLo ? "right" : "left") : "center",
+    xshift: tight && row === 0 ? (x === qLo ? -3 : 3) : 0,
+    showarrow: false, font: { color: color, size: 13 } });
   const annotations = dsAxisArrows("Q", "P").concat([
     { text: "D", x: DS_Q1, y: d.pAt(DS_Q1), xanchor: "left", yanchor: "middle", xshift: 8,
       showarrow: false, font: { color: "#111", size: 15 } },
     { text: "S", x: DS_Q1, y: s.pAt(DS_Q1), xanchor: "left", yanchor: "middle", xshift: 8,
       showarrow: false, font: { color: "#111", size: 15 } },
-    { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle", xshift: -11,
-      textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } }
+    { text: "P<sub>e</sub> = " + EQ_P, x: 0, y: EQ_P, xanchor: "center", yanchor: "middle",
+      xshift: -30, textangle: -90, showarrow: false, font: { color: GRAY, size: 13 } },
+    qLabel("Q<sub>e</sub> = " + EQ_Q, EQ_Q, 1, GRAY)
   ]);
-  const qLabel = (text, x) => ({ text: text, x: x, y: 0, yanchor: "top", yshift: -6,
-                                 showarrow: false, font: { color: "#012169", size: 13 } });
+  if (gap !== 0) {
+    annotations.push({ text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle",
+      xshift: -11, textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } });
+  }
   if (gap === 0) {
-    annotations.push(qLabel("Q = " + Qd, Qd));
+    // at the equilibrium the outer labels already say it all
   } else if (!labels) {
     annotations.push(qLabel("Q = " + qLo, qLo), qLabel("Q = " + qHi, qHi));
   } else {
@@ -872,7 +895,7 @@ function drawEquilibrium() {
         showarrow: false, font: { color: EQ_RED, size: 15 } }
     );
   }
-  const layout = { margin: { l: 24, r: 30, t: 20, b: 30 }, ...dsAxes(),
+  const layout = { margin: { l: 42, r: 30, t: 20, b: 46 }, ...dsAxes(),
                    showlegend: false, annotations };
   Plotly.react("plot-eq", traces, layout, { responsive: true, displayModeBar: false });
 }
