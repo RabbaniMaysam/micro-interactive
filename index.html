@@ -250,7 +250,9 @@
   <div class="chapter">Chapter 3: Demand, supply, and market equilibrium</div>
   <ul>
     <li><a href="#demand-experiment">Demand experiment</a></li>
-    <li><a href="#demand-move-shift">Movement along vs. shift</a></li>
+    <li><a href="#demand-move-shift">Demand: movement along vs. shift</a></li>
+    <li><a href="#supply-experiment">Supply experiment</a></li>
+    <li><a href="#supply-move-shift">Supply: movement along vs. shift</a></li>
   </ul>
 </aside>
 
@@ -295,6 +297,43 @@
           <div id="plot-shift" class="plot panel-plot"></div>
           <div class="hslider">
             <input type="range" id="knob-shift" min="-25" max="25" step="1" value="0" autocomplete="off">
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="supply-experiment">
+  <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
+  <section class="tool-card">
+    <h2>Supply experiment: would you tutor for 3 hours at this payment?</h2>
+    <div class="entry-layout">
+      <table class="entry" id="table-supply"></table>
+      <div id="plot-supply" class="plot"></div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="supply-move-shift">
+  <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
+  <section class="tool-card">
+    <div class="two-panel">
+      <div class="panel">
+        <h3>Movement along the supply curve</h3>
+        <div class="panel-body vertical">
+          <div class="vslider">
+            <input type="range" class="vertical" id="knob-smove" min="30" max="85" step="1" value="55" autocomplete="off">
+          </div>
+          <div id="plot-smove" class="plot panel-plot"></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Shift of the supply curve</h3>
+        <div class="panel-body">
+          <div id="plot-sshift" class="plot panel-plot"></div>
+          <div class="hslider">
+            <input type="range" id="knob-sshift" min="-25" max="25" step="1" value="0" autocomplete="off">
           </div>
         </div>
       </div>
@@ -497,45 +536,57 @@ function drawBudget(p) {
 }
 
 // ----------------------------------------------------------------------
-// Tool 2: demand experiment. The instructor names a price, students vote
-// yes or no, and the percentage saying yes is the quantity sold in a room
-// of 100. Five rows of price and quantity are typed in during class; the
+// Tools 2 and 4: classroom experiments. The instructor names a price (or
+// payment), students vote yes or no, and the percentage saying yes is the
+// quantity in a room of 100. Five rows are typed in during class; the
 // points appear in the figure as they are typed and are connected in row
 // order. Quantity is on the horizontal axis (0 to 100), price on the
-// vertical axis (rescaled to the largest price entered).
+// vertical axis (rescaled to the largest price entered). The demand
+// experiment (flagship iPhone) and the supply experiment (tutoring for 3
+// hours) share the code; a config names the elements and titles.
 // ----------------------------------------------------------------------
-const DEMAND_ROWS = 5;
-const DEMAND_P_DEFAULT_MAX = 2000;
+const EXP_ROWS = 5;
+const EXP_P_DEFAULT_MAX = 2000;
 
-function buildDemandTable() {
-  const table = document.getElementById("table-demand");
-  let html = "<thead><tr><th></th><th>Price ($)</th><th>Quantity (of 100)</th></tr></thead><tbody>";
-  for (let i = 0; i < DEMAND_ROWS; i++) {
+const EXPERIMENTS = {
+  demand: { table: "table-demand", plot: "plot-demand", priceHeader: "Price ($)",
+            yTitle: "Price ($)", xTitle: "Quantity (phones sold in a room of 100)" },
+  supply: { table: "table-supply", plot: "plot-supply", priceHeader: "Payment ($)",
+            yTitle: "Payment ($)", xTitle: "Quantity (tutors in a room of 100)" }
+};
+
+function buildExperimentTable(cfg) {
+  const table = document.getElementById(cfg.table);
+  let html = "<thead><tr><th></th><th>" + cfg.priceHeader +
+             "</th><th>Quantity (of 100)</th></tr></thead><tbody>";
+  for (let i = 0; i < EXP_ROWS; i++) {
     html += "<tr><td class=\"idx\">" + (i + 1) + "</td>" +
       "<td><input type=\"text\" inputmode=\"decimal\" class=\"num\" data-row=\"" + i + "\" data-col=\"p\"></td>" +
       "<td><input type=\"text\" inputmode=\"decimal\" class=\"num\" data-row=\"" + i + "\" data-col=\"q\"></td></tr>";
   }
   html += "<tr><td></td><td class=\"actions\" colspan=\"2\">" +
-          "<button class=\"reset-btn\" id=\"clear-demand\">Clear</button></td></tr></tbody>";
+          "<button class=\"reset-btn\">Clear</button></td></tr></tbody>";
   table.innerHTML = html;
+  const redraw = () => drawExperiment(cfg);
   // fresh boxes on every page load (autocomplete off defeats form restoration)
   table.querySelectorAll("input").forEach(inp => {
     inp.value = "";
     inp.setAttribute("autocomplete", "off");
-    inp.addEventListener("input", drawDemand);
+    inp.addEventListener("input", redraw);
   });
-  document.getElementById("clear-demand").addEventListener("click", () => {
+  table.querySelector("button").addEventListener("click", () => {
     table.querySelectorAll("input").forEach(inp => { inp.value = ""; });
-    drawDemand();
+    redraw();
     const first = table.querySelector("input");
     if (first) first.focus();
   });
+  return redraw;
 }
 
-function readDemandRows() {
-  const table = document.getElementById("table-demand");
+function readExperimentRows(cfg) {
+  const table = document.getElementById(cfg.table);
   const rows = [];
-  for (let i = 0; i < DEMAND_ROWS; i++) {
+  for (let i = 0; i < EXP_ROWS; i++) {
     const p = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"p\"]").value;
     const q = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"q\"]").value;
     if (p.trim() === "" || q.trim() === "") continue;
@@ -546,10 +597,10 @@ function readDemandRows() {
   return rows;
 }
 
-function drawDemand() {
-  const rows = readDemandRows();
+function drawExperiment(cfg) {
+  const rows = readExperimentRows(cfg);
   const pMax = rows.length ? Math.max(...rows.map(r => r.p)) : 0;
-  const yTop = Math.max(pMax * 1.15, pMax > 0 ? 0 : DEMAND_P_DEFAULT_MAX);
+  const yTop = Math.max(pMax * 1.15, pMax > 0 ? 0 : EXP_P_DEFAULT_MAX);
 
   const traces = [
     {
@@ -561,39 +612,51 @@ function drawDemand() {
       textposition: "top right",
       textfont: { color: "#012169", size: 12 },
       cliponaxis: false,
-      hovertemplate: "Price $%{y}, quantity %{x}<extra></extra>"
+      hovertemplate: "$%{y}, quantity %{x}<extra></extra>"
     }
   ];
 
   const layout = {
     margin: { l: 70, r: 60, t: 30, b: 60 },
-    xaxis: { title: "Quantity (phones sold in a room of 100)", range: [0, 100],
-             fixedrange: true, zeroline: true, dtick: 10 },
-    yaxis: { title: "Price ($)", range: [0, yTop], fixedrange: true, zeroline: true },
+    xaxis: { title: cfg.xTitle, range: [0, 100], fixedrange: true, zeroline: true, dtick: 10 },
+    yaxis: { title: cfg.yTitle, range: [0, yTop], fixedrange: true, zeroline: true },
     showlegend: false
   };
 
-  Plotly.react("plot-demand", traces, layout, { responsive: true, displayModeBar: false });
+  Plotly.react(cfg.plot, traces, layout, { responsive: true, displayModeBar: false });
 }
 
 // ----------------------------------------------------------------------
-// Tool 3: movement along the demand curve (left) vs. a shift of demand
-// (right). Both panels use the demand line P = 100 - Q on unnumbered
-// axes from 0 to 100. Left: a vertical knob sets the price; the point
-// slides along the line and its price and quantity are marked on the
-// axes. Right: a horizontal knob shifts the line by s units; the original
-// stays black, the shifted line is blue, an arrow between the two shows
-// the direction, and the new line is labeled D with an up or down arrow.
+// Tools 3 and 5: movement along a curve (left) vs. a shift of the curve
+// (right), for demand and for supply. Left: a vertical knob sets the
+// price; the point slides along the line and its price and quantity are
+// marked on the axes. Right: a horizontal knob shifts the line by s
+// units; the original stays black, the shifted line is blue, an arrow
+// between the two shows the direction, and the new line is labeled with
+// the curve's letter and an up or down arrow.
 // ----------------------------------------------------------------------
-// The demand line is the segment from (DS_Q0, DS_P1) to (DS_Q1, DS_P0) on
-// P = DS_SUM - Q: it floats inside the axes like a textbook figure rather
-// than joining the two axes. Plotly's own axis lines are hidden; the axes
-// are drawn as two arrows from the origin.
+// Each line is a segment over Q in [DS_Q0, DS_Q1] that floats inside the
+// axes like a textbook figure rather than joining them. Demand:
+// P = 105 - Q (85 down to 20). Supply: P = Q + 5 (25 up to 90). Plotly's
+// own axis lines are hidden; the axes are drawn as two arrows from the
+// origin.
 const DS_X_MAX = 115, DS_Y_MAX = 100;
-const DS_Q0 = 20, DS_Q1 = 85, DS_SUM = 105;   // P = 105 - Q, so P runs 85 down to 20
-const DS_P0 = DS_SUM - DS_Q1, DS_P1 = DS_SUM - DS_Q0;
+const DS_Q0 = 20, DS_Q1 = 85;
 const DS_MARGIN = { l: 20, r: 30, t: 20, b: 10 };        // the knob sits right under the Q axis
 const DS_MARGIN_MOVE = { l: 24, r: 10, t: 20, b: 30 };   // room for the rotated "P = 70" label
+
+const CURVES = {
+  demand: {
+    letter: "D", pAt: q => 105 - q, qAt: p => 105 - p,
+    movePlot: "plot-move", moveKnob: "knob-move", shiftPlot: "plot-shift", shiftKnob: "knob-shift",
+    awayY: 1     // a rightward shift puts the blue line above and right of the black one
+  },
+  supply: {
+    letter: "S", pAt: q => q + 5, qAt: p => p - 5,
+    movePlot: "plot-smove", moveKnob: "knob-smove", shiftPlot: "plot-sshift", shiftKnob: "knob-sshift",
+    awayY: -1    // a rightward shift puts the blue line below and right of the black one
+  }
+};
 
 function dsAxes() {
   return {
@@ -617,16 +680,16 @@ function dsAxisArrows(xLabel, yLabel) {
                          showarrow: false, font: { color: "#111", size: 15 } });
   return out;
 }
-function dsLine(shift, color) {
-  return { x: [DS_Q0 + shift, DS_Q1 + shift], y: [DS_P1, DS_P0], mode: "lines",
+function dsLine(c, shift, color) {
+  return { x: [DS_Q0 + shift, DS_Q1 + shift], y: [c.pAt(DS_Q0), c.pAt(DS_Q1)], mode: "lines",
            line: { color: color, width: 3 }, hoverinfo: "skip" };
 }
 
-function drawMove() {
-  const P = parseFloat(document.getElementById("knob-move").value);
-  const Q = DS_SUM - P;
+function drawMove(c) {
+  const P = parseFloat(document.getElementById(c.moveKnob).value);
+  const Q = c.qAt(P);
   const traces = [
-    dsLine(0, "#111"),
+    dsLine(c, 0, "#111"),
     { x: [Q, Q, null, 0, Q], y: [0, P, null, P, P], mode: "lines",
       line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" },
     { x: [Q], y: [P], mode: "markers",
@@ -634,7 +697,7 @@ function drawMove() {
       hovertemplate: "P = %{y}, Q = %{x}<extra></extra>" }
   ];
   const annotations = dsAxisArrows(null, null).concat([
-    { text: "D", x: DS_Q1, y: DS_P0, xanchor: "left", yanchor: "middle", xshift: 8,
+    { text: c.letter, x: DS_Q1, y: c.pAt(DS_Q1), xanchor: "left", yanchor: "middle", xshift: 8,
       showarrow: false, font: { color: "#111", size: 15 } },
     { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle", xshift: -11,
       textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } },
@@ -642,59 +705,66 @@ function drawMove() {
       showarrow: false, font: { color: "#012169", size: 13 } }
   ]);
   const layout = { margin: DS_MARGIN_MOVE, ...dsAxes(), showlegend: false, annotations };
-  Plotly.react("plot-move", traces, layout, { responsive: true, displayModeBar: false });
+  Plotly.react(c.movePlot, traces, layout, { responsive: true, displayModeBar: false });
 }
 
-function drawShift() {
-  const s = parseFloat(document.getElementById("knob-shift").value);
-  const traces = [dsLine(0, "#111")];
-  // D1 and D2 sit at the same height, right beside the lower end of their
-  // lines. For a shift too small for the two labels to fit side by side,
-  // D2 is omitted (the D-arrow label still marks the blue line).
+function drawShift(c) {
+  const s = parseFloat(document.getElementById(c.shiftKnob).value);
+  const traces = [dsLine(c, 0, "#111")];
+  // The two end labels sit at the same height, right beside the right end
+  // of their lines. For a shift too small for them to fit side by side,
+  // the second is omitted (the arrow label still marks the blue line).
+  const pEnd = c.pAt(DS_Q1);
   const endLabel = (text, x, color) => ({
-    text: text, x: x, y: DS_P0, xanchor: "left", yanchor: "middle", xshift: 4,
+    text: text, x: x, y: pEnd, xanchor: "left", yanchor: "middle", xshift: 4,
     showarrow: false, font: { color: color, size: 15 }
   });
   const annotations = dsAxisArrows("Q", "P").concat([
-    endLabel("D<sub>1</sub>", DS_Q1, "#111")
+    endLabel(c.letter + "<sub>1</sub>", DS_Q1, "#111")
   ]);
   if (s !== 0) {
     // The blue line exists only once the knob leaves the center.
-    traces.push(dsLine(s, "#2563eb"));
-    if (Math.abs(s) >= 7) annotations.push(endLabel("D<sub>2</sub>", DS_Q1 + s, "#2563eb"));
+    traces.push(dsLine(c, s, "#2563eb"));
+    if (Math.abs(s) >= 7) {
+      annotations.push(endLabel(c.letter + "<sub>2</sub>", DS_Q1 + s, "#2563eb"));
+    }
     // arrow from the midpoint of the old line to the midpoint of the new one
-    const qm = (DS_Q0 + DS_Q1) / 2, pm = (DS_P0 + DS_P1) / 2;
+    const qm = (DS_Q0 + DS_Q1) / 2, pm = (c.pAt(DS_Q0) + c.pAt(DS_Q1)) / 2;
     annotations.push({
       x: qm + s, y: pm, ax: qm, ay: pm,
       xref: "x", yref: "y", axref: "x", ayref: "y",
       showarrow: true, arrowhead: 2, arrowsize: 1.3, arrowwidth: 2.5,
       arrowcolor: "#2563eb", text: ""
     });
-    // "D↑" or "D↓" beside the middle of the blue line, on the side away
-    // from the black line (upper right for a rightward shift, lower left
-    // for a leftward one)
+    // "D↑" or "D↓" (or S) beside the middle of the blue line, on the side
+    // away from the black line
     const side = s > 0 ? 1 : -1;
     annotations.push({
-      text: s > 0 ? "D&#8593;" : "D&#8595;", x: qm + s, y: pm,
-      xshift: 16 * side, yshift: 16 * side, showarrow: false,
+      text: c.letter + (s > 0 ? "&#8593;" : "&#8595;"), x: qm + s, y: pm,
+      xshift: 16 * side, yshift: 16 * side * c.awayY, showarrow: false,
       font: { color: "#2563eb", size: 17 }
     });
   }
   const layout = { margin: DS_MARGIN, ...dsAxes(), showlegend: false, annotations };
-  Plotly.react("plot-shift", traces, layout, { responsive: true, displayModeBar: false });
+  Plotly.react(c.shiftPlot, traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerCurveTool(id, c) {
+  document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
+  document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
+  TOOLS[id] = {
+    redraw: () => { drawMove(c); drawShift(c); },
+    reset: () => { resetKnob(c.moveKnob); resetKnob(c.shiftKnob); }
+  };
 }
 
 window.addEventListener("DOMContentLoaded", () => {
   TOOLS["budget-line"] =
     makeControls(document.getElementById("ctrl-budget"), BUDGET_SPECS, drawBudget);
-  buildDemandTable();
-  TOOLS["demand-experiment"] = { redraw: drawDemand };
-  document.getElementById("knob-move").addEventListener("input", drawMove);
-  document.getElementById("knob-shift").addEventListener("input", drawShift);
-  TOOLS["demand-move-shift"] = {
-    redraw: () => { drawMove(); drawShift(); },
-    reset: () => { resetKnob("knob-move"); resetKnob("knob-shift"); }
-  };
+  TOOLS["demand-experiment"] = { redraw: buildExperimentTable(EXPERIMENTS.demand) };
+  TOOLS["supply-experiment"] = { redraw: buildExperimentTable(EXPERIMENTS.supply) };
+  registerCurveTool("demand-move-shift", CURVES.demand);
+  registerCurveTool("supply-move-shift", CURVES.supply);
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
