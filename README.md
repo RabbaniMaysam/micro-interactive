@@ -16,7 +16,9 @@ so the chapter list is not exhaustive.
 | 3 | `#demand-move-shift` | Movement along vs. shift | two panels, no card title, each with its own title; the demand line is the segment of P = 105 - Q from Q = 20 to 85, floating inside arrow axes (Plotly's axes hidden, arrows drawn as annotations); left: a vertical price knob (25 to 80) slides a point along the curve and marks P and Q on the axes, no axis titles; right: axes labeled P and Q, a horizontal knob (-25 to 25) draws a blue shifted line beside the black original, an arrow between their midpoints, and a "D" with an up or down arrow above the new line's upper end |
 
 Slider ranges: a price runs from half to twice its default; the figure
-height is 420px (the user found 600px too tall).
+height is 420px (the user found 600px too tall). The two-panel tool uses
+250px-tall panels with a 0.4em gap; the price label on the left panel is
+rotated vertical so the left margin stays at 24px.
 
 Each tool is a page of its own: the sidebar link sets the URL hash, the
 router shows that `.tool-page` and hides the others, and calls the tool's
