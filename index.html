@@ -223,6 +223,9 @@
     margin: 0;
     display: block;
   }
+  /* Single-figure knob tool: a taller plot, and the knob to match */
+  .eq-plot { height: 360px; flex: 1 1 auto; min-width: 0; }
+  .vslider.tall input[type=range].vertical { height: 310px; }
   .hslider { padding: 0 30px 0 20px; }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
   @media (max-width: 900px) {
@@ -253,6 +256,7 @@
     <li><a href="#demand-move-shift">Demand: movement along vs. shift</a></li>
     <li><a href="#supply-experiment">Supply experiment</a></li>
     <li><a href="#supply-move-shift">Supply: movement along vs. shift</a></li>
+    <li><a href="#equilibrium">Equilibrium, surplus, and shortage</a></li>
   </ul>
 </aside>
 
@@ -337,6 +341,19 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="equilibrium">
+  <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
+  <section class="tool-card">
+    <h2>Equilibrium, surplus, and shortage</h2>
+    <div class="panel-body vertical">
+      <div class="vslider tall">
+        <input type="range" class="vertical" id="knob-eq" min="30" max="80" step="1" value="55" autocomplete="off">
+      </div>
+      <div id="plot-eq" class="plot eq-plot"></div>
     </div>
   </section>
 </div>
@@ -749,6 +766,66 @@ function drawShift(c) {
   Plotly.react(c.shiftPlot, traces, layout, { responsive: true, displayModeBar: false });
 }
 
+// ----------------------------------------------------------------------
+// Tool 6: equilibrium, surplus, and shortage. Demand and supply (the two
+// segments above) cross at Q = 50, P = 55. A vertical knob sets the
+// price. At the equilibrium price the crossing point is marked with its
+// P and Q. Above it, quantity supplied exceeds quantity demanded and a
+// thick dark red segment between the two curves at that price is the
+// surplus; below it the segment is the shortage. Qd and Qs are marked on
+// the quantity axis.
+// ----------------------------------------------------------------------
+const EQ_RED = "#9f1239";
+
+function drawEquilibrium() {
+  const P = parseFloat(document.getElementById("knob-eq").value);
+  const d = CURVES.demand, s = CURVES.supply;
+  const Qd = d.qAt(P), Qs = s.qAt(P);
+  const gap = Qs - Qd;                       // positive: surplus; negative: shortage
+  const qLo = Math.min(Qd, Qs), qHi = Math.max(Qd, Qs);
+
+  const traces = [
+    dsLine(d, 0, "#111"),
+    dsLine(s, 0, "#111"),
+    // dotted guides: horizontal at P to the farther point, vertical under each point
+    { x: [0, qHi, null, Qd, Qd, null, Qs, Qs], y: [P, P, null, 0, P, null, 0, P],
+      mode: "lines", line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" }
+  ];
+  if (gap !== 0) {
+    traces.push({ x: [qLo, qHi], y: [P, P], mode: "lines",
+                  line: { color: EQ_RED, width: 6 }, hoverinfo: "skip" });
+  }
+  traces.push({ x: [Qd, Qs], y: [P, P], mode: "markers",
+                marker: { size: 13, color: "#fff", line: { color: "#012169", width: 3 } },
+                hoverinfo: "skip" });
+
+  const annotations = dsAxisArrows("Q", "P").concat([
+    { text: "D", x: DS_Q1, y: d.pAt(DS_Q1), xanchor: "left", yanchor: "middle", xshift: 8,
+      showarrow: false, font: { color: "#111", size: 15 } },
+    { text: "S", x: DS_Q1, y: s.pAt(DS_Q1), xanchor: "left", yanchor: "middle", xshift: 8,
+      showarrow: false, font: { color: "#111", size: 15 } },
+    { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle", xshift: -11,
+      textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } }
+  ]);
+  if (gap === 0) {
+    annotations.push({ text: "Q = " + Qd, x: Qd, y: 0, yanchor: "top", yshift: -6,
+                       showarrow: false, font: { color: "#012169", size: 13 } });
+  } else {
+    annotations.push(
+      { text: "Q<sub>d</sub> = " + Qd, x: Qd, y: 0, yanchor: "top", yshift: -6,
+        showarrow: false, font: { color: "#012169", size: 13 } },
+      { text: "Q<sub>s</sub> = " + Qs, x: Qs, y: 0, yanchor: "top", yshift: -6,
+        showarrow: false, font: { color: "#012169", size: 13 } },
+      { text: (gap > 0 ? "Surplus = " : "Shortage = ") + Math.abs(gap),
+        x: (qLo + qHi) / 2, y: P, yanchor: "bottom", yshift: 8,
+        showarrow: false, font: { color: EQ_RED, size: 15 } }
+    );
+  }
+  const layout = { margin: { l: 24, r: 30, t: 20, b: 30 }, ...dsAxes(),
+                   showlegend: false, annotations };
+  Plotly.react("plot-eq", traces, layout, { responsive: true, displayModeBar: false });
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -765,6 +842,8 @@ window.addEventListener("DOMContentLoaded", () => {
   TOOLS["supply-experiment"] = { redraw: buildExperimentTable(EXPERIMENTS.supply) };
   registerCurveTool("demand-move-shift", CURVES.demand);
   registerCurveTool("supply-move-shift", CURVES.supply);
+  document.getElementById("knob-eq").addEventListener("input", drawEquilibrium);
+  TOOLS["equilibrium"] = { redraw: drawEquilibrium, reset: () => resetKnob("knob-eq") };
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
