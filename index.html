@@ -223,6 +223,17 @@
     margin: 0;
     display: block;
   }
+  /* Title row with a toggle at the right (off by default: no spoilers) */
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 1em; }
+  .card-head h2 { margin-bottom: 0.4em; }
+  label.toggle {
+    display: inline-flex; align-items: center; gap: 0.4em;
+    font-size: 0.85em; color: var(--primary);
+    border: 1px solid var(--primary); border-radius: 4px;
+    padding: 0.25em 0.7em; cursor: pointer; user-select: none; white-space: nowrap;
+  }
+  label.toggle:has(input:checked) { background: var(--primary); color: white; }
+  label.toggle input { accent-color: var(--secondary); margin: 0; }
   /* Single-figure knob tool: a taller plot, and the knob to match */
   .eq-plot { height: 360px; flex: 1 1 auto; min-width: 0; }
   .vslider.tall input[type=range].vertical { height: 310px; }
@@ -348,7 +359,10 @@
 <div class="tool-page" id="equilibrium">
   <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
   <section class="tool-card">
-    <h2>Equilibrium, surplus, and shortage</h2>
+    <div class="card-head">
+      <h2>Equilibrium, surplus, and shortage</h2>
+      <label class="toggle"><input type="checkbox" id="toggle-eq" autocomplete="off"> Show labels</label>
+    </div>
     <div class="panel-body vertical">
       <div class="vslider tall">
         <input type="range" class="vertical" id="knob-eq" min="30" max="80" step="1" value="55" autocomplete="off">
@@ -779,6 +793,10 @@ const EQ_RED = "#9f1239";
 
 function drawEquilibrium() {
   const P = parseFloat(document.getElementById("knob-eq").value);
+  // "Show labels" off (the default): only the points and their P and Q
+  // readings, no Qd/Qs names and no surplus/shortage segment, so the
+  // students can be asked what they see.
+  const labels = document.getElementById("toggle-eq").checked;
   const d = CURVES.demand, s = CURVES.supply;
   const Qd = d.qAt(P), Qs = s.qAt(P);
   const gap = Qs - Qd;                       // positive: surplus; negative: shortage
@@ -791,7 +809,7 @@ function drawEquilibrium() {
     { x: [0, qHi, null, Qd, Qd, null, Qs, Qs], y: [P, P, null, 0, P, null, 0, P],
       mode: "lines", line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" }
   ];
-  if (gap !== 0) {
+  if (gap !== 0 && labels) {
     traces.push({ x: [qLo, qHi], y: [P, P], mode: "lines",
                   line: { color: EQ_RED, width: 6 }, hoverinfo: "skip" });
   }
@@ -807,15 +825,16 @@ function drawEquilibrium() {
     { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle", xshift: -11,
       textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } }
   ]);
+  const qLabel = (text, x) => ({ text: text, x: x, y: 0, yanchor: "top", yshift: -6,
+                                 showarrow: false, font: { color: "#012169", size: 13 } });
   if (gap === 0) {
-    annotations.push({ text: "Q = " + Qd, x: Qd, y: 0, yanchor: "top", yshift: -6,
-                       showarrow: false, font: { color: "#012169", size: 13 } });
+    annotations.push(qLabel("Q = " + Qd, Qd));
+  } else if (!labels) {
+    annotations.push(qLabel("Q = " + qLo, qLo), qLabel("Q = " + qHi, qHi));
   } else {
     annotations.push(
-      { text: "Q<sub>d</sub> = " + Qd, x: Qd, y: 0, yanchor: "top", yshift: -6,
-        showarrow: false, font: { color: "#012169", size: 13 } },
-      { text: "Q<sub>s</sub> = " + Qs, x: Qs, y: 0, yanchor: "top", yshift: -6,
-        showarrow: false, font: { color: "#012169", size: 13 } },
+      qLabel("Q<sub>d</sub> = " + Qd, Qd),
+      qLabel("Q<sub>s</sub> = " + Qs, Qs),
       { text: (gap > 0 ? "Surplus = " : "Shortage = ") + Math.abs(gap),
         x: (qLo + qHi) / 2, y: P, yanchor: "bottom", yshift: 8,
         showarrow: false, font: { color: EQ_RED, size: 15 } }
@@ -843,7 +862,11 @@ window.addEventListener("DOMContentLoaded", () => {
   registerCurveTool("demand-move-shift", CURVES.demand);
   registerCurveTool("supply-move-shift", CURVES.supply);
   document.getElementById("knob-eq").addEventListener("input", drawEquilibrium);
-  TOOLS["equilibrium"] = { redraw: drawEquilibrium, reset: () => resetKnob("knob-eq") };
+  document.getElementById("toggle-eq").addEventListener("change", drawEquilibrium);
+  TOOLS["equilibrium"] = {
+    redraw: drawEquilibrium,
+    reset: () => { resetKnob("knob-eq"); document.getElementById("toggle-eq").checked = false; }
+  };
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
