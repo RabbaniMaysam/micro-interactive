@@ -196,7 +196,7 @@
   .two-panel {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 1em 1.5em;
+    gap: 1em 0.4em;
   }
   .panel h3 {
     margin: 0.2em 0 0.3em 0;
@@ -206,9 +206,9 @@
   }
   .panel-body { display: flex; flex-direction: column; min-width: 0; }
   .panel-body.vertical { flex-direction: row; align-items: flex-start; }
-  .panel-plot { height: 380px; flex: 1 1 auto; min-width: 0; }
+  .panel-plot { height: 250px; flex: 1 1 auto; min-width: 0; }
   /* Knob geometry follows the plot margins (DS_MARGIN in the script):
-     top 20, bottom 30, left 30, right 30 on a 380px-tall plot */
+     top 20, bottom 30, left 20, right 30 on a 250px-tall plot */
   .vslider {
     padding: 20px 0 0 0;
     width: 1.6em;
@@ -218,12 +218,12 @@
     writing-mode: vertical-lr;
     direction: rtl;           /* top of the slider is the highest price */
     width: 1.4em;
-    height: 330px;
+    height: 200px;
     accent-color: var(--primary);
     margin: 0;
     display: block;
   }
-  .hslider { padding: 0 30px 0 30px; margin-top: -6px; }
+  .hslider { padding: 0 30px 0 20px; margin-top: -6px; }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -571,8 +571,8 @@ function drawDemand() {
 const DS_X_MAX = 115, DS_Y_MAX = 100;
 const DS_Q0 = 20, DS_Q1 = 85, DS_SUM = 105;   // P = 105 - Q, so P runs 85 down to 20
 const DS_P0 = DS_SUM - DS_Q1, DS_P1 = DS_SUM - DS_Q0;
-const DS_MARGIN = { l: 30, r: 30, t: 20, b: 30 };
-const DS_MARGIN_MOVE = { l: 56, r: 30, t: 20, b: 30 };   // room for the "P = 70" label
+const DS_MARGIN = { l: 20, r: 30, t: 20, b: 30 };
+const DS_MARGIN_MOVE = { l: 24, r: 10, t: 20, b: 30 };   // room for the rotated "P = 70" label
 
 function dsAxes() {
   return {
@@ -615,8 +615,8 @@ function drawMove() {
   const annotations = dsAxisArrows(null, null).concat([
     { text: "D", x: DS_Q1, y: DS_P0, xanchor: "left", yanchor: "middle", xshift: 8,
       showarrow: false, font: { color: "#111", size: 15 } },
-    { text: "P = " + P, x: 0, y: P, xanchor: "right", xshift: -6,
-      showarrow: false, font: { color: "#012169", size: 13 } },
+    { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle", xshift: -11,
+      textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } },
     { text: "Q = " + Q, x: Q, y: 0, yanchor: "top", yshift: -6,
       showarrow: false, font: { color: "#012169", size: 13 } }
   ]);
