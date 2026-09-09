@@ -13,6 +13,7 @@ so the chapter list is not exhaustive.
 |---|---|---|---|
 | 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2 (1 to 4), can of soda $1 (0.5 to 2); axes fixed at 10 burgers by 15 cans |
 | 3 | `#demand-experiment` | Demand experiment | five empty rows of price and quantity (0 to 100), typed in class; points plotted and connected in row order |
+| 3 | `#demand-move-shift` | Movement along vs. shift | two panels on the line P = 100 - Q with unnumbered axes; left: a vertical price knob (10 to 90) slides a point along the curve and marks P and Q on the axes; right: a horizontal knob (-30 to 30) draws a blue shifted line beside the black original, an arrow between them, and a "D" with an up or down arrow |
 
 Slider ranges: a price runs from half to twice its default; the figure
 height is 420px (the user found 600px too tall).
