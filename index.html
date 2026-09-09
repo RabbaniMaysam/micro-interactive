@@ -268,13 +268,16 @@ function fmtQty(v) {
 // Tool 1: budget line. Burgers on the horizontal axis, cans of soda on
 // the vertical axis. Budget I, prices Pb and Ps. The line is
 // Pb * burgers + Ps * soda = I, with intercepts I/Pb and I/Ps.
-// Axes are fixed (0 to AXIS_MAX) so that a change in the budget or a
-// price visibly moves the line instead of rescaling the picture.
+// Axes are fixed (0 to X_MAX and 0 to Y_MAX) so that a change in the
+// budget or a price visibly moves the line instead of rescaling the
+// picture. Intercepts beyond an axis are clipped, and the label of a
+// clipped intercept is dropped.
 // ----------------------------------------------------------------------
-const AXIS_MAX = 20;
+const X_MAX = 10;   // burgers axis
+const Y_MAX = 15;   // cans of soda axis
 
 const BUDGET_SPECS = {
-  I:  { label: "Budget",               value: 10, min: 1,   max: 20, step: 1,    fmt: 0 },
+  I:  { label: "Budget",               value: 10, min: 5,   max: 15, step: 1,    fmt: 0 },
   Pb: { label: "Price of a burger",     value: 2,  min: 0.5, max: 5,  step: 0.25, fmt: 2 },
   Ps: { label: "Price of a can of soda", value: 1,  min: 0.5, max: 5,  step: 0.25, fmt: 2 }
 };
@@ -310,22 +313,27 @@ function drawBudget(p) {
 
   const layout = {
     margin: { l: 60, r: 30, t: 30, b: 60 },
-    xaxis: { title: "Burgers", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
-    yaxis: { title: "Cans of soda", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
+    xaxis: { title: "Burgers", range: [0, X_MAX], fixedrange: true, zeroline: true },
+    yaxis: { title: "Cans of soda", range: [0, Y_MAX], fixedrange: true, zeroline: true },
     showlegend: false,
     annotations: [
       {
-        text: "Not affordable",
-        x: 0.72 * AXIS_MAX, y: 0.82 * AXIS_MAX, showarrow: false,
-        font: { color: "#6b7280", size: 13 }
-      },
-      {
         text: "Affordable",
-        x: Math.min(xInt, AXIS_MAX) * 0.25, y: Math.min(yInt, AXIS_MAX) * 0.25,
+        x: Math.min(xInt, X_MAX) * 0.25, y: Math.min(yInt, Y_MAX) * 0.25,
         showarrow: false, font: { color: "#012169", size: 13 }
       }
     ]
   };
+  // "Not affordable" sits in the upper right corner only while that corner
+  // is above the line; with a large budget and low prices the whole
+  // visible square can be affordable, and then the label is omitted.
+  const cx = 0.75 * X_MAX, cy = 0.85 * Y_MAX;
+  if (p.Pb * cx + p.Ps * cy > p.I) {
+    layout.annotations.push({
+      text: "Not affordable", x: cx, y: cy, showarrow: false,
+      font: { color: "#6b7280", size: 13 }
+    });
+  }
 
   Plotly.react("plot-budget", traces, layout, { responsive: true, displayModeBar: false });
 }
