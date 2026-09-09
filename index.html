@@ -163,7 +163,8 @@
   table.entry th, table.entry td { padding: 0.3em 0.5em; text-align: center; }
   table.entry th { color: var(--primary); font-weight: 600; }
   table.entry td.idx { color: var(--muted); font-size: 0.85em; }
-  table.entry input[type=number] {
+  /* Plain text boxes (inputmode=decimal): no spinner arrows */
+  table.entry input.num {
     width: 6em;
     padding: 0.25em 0.4em;
     border: 1px solid var(--border);
@@ -172,7 +173,7 @@
     text-align: right;
     font-variant-numeric: tabular-nums;
   }
-  table.entry input[type=number]:focus {
+  table.entry input.num:focus {
     outline: 2px solid var(--primary);
     border-color: var(--primary);
   }
@@ -420,8 +421,8 @@ function buildDemandTable() {
   let html = "<thead><tr><th></th><th>Price ($)</th><th>Quantity (of 100)</th></tr></thead><tbody>";
   for (let i = 0; i < DEMAND_ROWS; i++) {
     html += "<tr><td class=\"idx\">" + (i + 1) + "</td>" +
-      "<td><input type=\"number\" min=\"0\" step=\"1\" data-row=\"" + i + "\" data-col=\"p\"></td>" +
-      "<td><input type=\"number\" min=\"0\" max=\"100\" step=\"1\" data-row=\"" + i + "\" data-col=\"q\"></td></tr>";
+      "<td><input type=\"text\" inputmode=\"decimal\" class=\"num\" data-row=\"" + i + "\" data-col=\"p\"></td>" +
+      "<td><input type=\"text\" inputmode=\"decimal\" class=\"num\" data-row=\"" + i + "\" data-col=\"q\"></td></tr>";
   }
   html += "<tr><td></td><td class=\"actions\" colspan=\"2\">" +
           "<button class=\"reset-btn\" id=\"clear-demand\">Clear</button></td></tr></tbody>";
@@ -441,8 +442,8 @@ function readDemandRows() {
   for (let i = 0; i < DEMAND_ROWS; i++) {
     const p = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"p\"]").value;
     const q = table.querySelector("input[data-row=\"" + i + "\"][data-col=\"q\"]").value;
-    if (p === "" || q === "") continue;
-    const pv = parseFloat(p), qv = parseFloat(q);
+    if (p.trim() === "" || q.trim() === "") continue;
+    const pv = parseFloat(p.replace(/[$,\s]/g, "")), qv = parseFloat(q.replace(/[%,\s]/g, ""));
     if (!isFinite(pv) || !isFinite(qv)) continue;
     rows.push({ p: pv, q: qv });
   }
