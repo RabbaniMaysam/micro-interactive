@@ -82,21 +82,20 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-  aside.sidebar .group-label {
-    margin-top: 1em;
-    font-size: 0.75em;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--muted);
+  /* Two layers: a chapter (plain text, not a link) and its tools (links) */
+  aside.sidebar .chapter {
+    margin-top: 0.9em;
+    font-weight: 600;
+    color: var(--text);
     border-top: 1px solid var(--border);
     padding-top: 0.7em;
   }
-  aside.sidebar .group-label:first-of-type {
+  aside.sidebar .chapter:first-of-type {
     margin-top: 0;
     border-top: none;
     padding-top: 0;
   }
-  aside.sidebar ul { list-style: none; margin: 0.3em 0 0 0; padding: 0; }
+  aside.sidebar ul { list-style: none; margin: 0.3em 0 0 0; padding: 0 0 0 1.2em; }
   aside.sidebar li { margin: 0.25em 0; }
   aside.sidebar a { color: var(--primary); text-decoration: none; }
   aside.sidebar a:hover { text-decoration: underline; }
@@ -142,16 +141,6 @@
     margin-bottom: 0.1em;
     white-space: nowrap;
   }
-  .tool-body {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) max-content;
-    gap: 0.5em 1em;
-    align-items: start;
-  }
-  .tool-body .plot { min-width: 0; }
-  @media (max-width: 1100px) {
-    .tool-body { grid-template-columns: 1fr; }
-  }
   .control .symbol {
     font-weight: 600;
     color: var(--primary);
@@ -164,24 +153,6 @@
   }
   .control input[type=range] { width: 100%; accent-color: var(--primary); }
   .plot { width: 100%; height: 600px; }
-  table.bundle {
-    border-collapse: collapse;
-    font-size: 0.85em;
-    margin-top: 0.4em;
-    font-variant-numeric: tabular-nums;
-  }
-  table.bundle th, table.bundle td {
-    border-bottom: 1px solid var(--border);
-    padding: 0.2em 0.6em;
-    text-align: right;
-    white-space: nowrap;
-  }
-  table.bundle th {
-    color: var(--primary);
-    font-weight: 600;
-    border-bottom: 2px solid var(--border);
-  }
-  .table-wrap { overflow: visible; }
   .reset-btn {
     background: white;
     border: 1px solid var(--primary);
@@ -219,7 +190,7 @@
 
 <aside class="sidebar">
   <h3>Tools by chapter</h3>
-  <div class="group-label">Chapter 1: Limits, alternatives, and choices</div>
+  <div class="chapter">Chapter 1: Limits, alternatives, and choices</div>
   <ul>
     <li><a href="#budget-line">Budget line</a></li>
   </ul>
@@ -232,10 +203,7 @@
 <section class="tool-card" id="budget-line">
   <h2>Budget line</h2>
   <div class="controls" id="ctrl-budget"></div>
-  <div class="tool-body">
-    <div id="plot-budget" class="plot"></div>
-    <div class="table-wrap" id="table-budget"></div>
-  </div>
+  <div id="plot-budget" class="plot"></div>
 </section>
 
 </main>
@@ -321,7 +289,7 @@ function drawBudget(p) {
       x: [0, xInt, 0, 0], y: [0, 0, yInt, 0],
       fill: "toself", fillcolor: "rgba(37, 99, 235, 0.30)",
       mode: "lines", line: { width: 0 },
-      hoverinfo: "skip", name: "Affordable (feasible)", showlegend: true
+      hoverinfo: "skip", name: "Affordable (feasible)"
     },
     {
       x: [xInt, 0], y: [0, yInt],
@@ -344,8 +312,7 @@ function drawBudget(p) {
     margin: { l: 60, r: 30, t: 30, b: 60 },
     xaxis: { title: "Burgers", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
     yaxis: { title: "Cans of soda", range: [0, AXIS_MAX], fixedrange: true, zeroline: true },
-    showlegend: true,
-    legend: { orientation: "h", y: -0.18 },
+    showlegend: false,
     annotations: [
       {
         text: "Not affordable",
@@ -360,25 +327,7 @@ function drawBudget(p) {
     ]
   };
 
-  // The table is written before the plot so that the plot's column is
-  // already narrowed when Plotly measures it; a resize afterwards handles
-  // any change in the table's width.
-  const maxB = Math.floor(xInt + 1e-9);
-  let rows = "";
-  for (let b = 0; b <= maxB; b++) {
-    const spent = b * p.Pb;
-    const left = p.I - spent;
-    rows += "<tr><td>" + b + "</td><td>" + fmt(spent, 2) +
-            "</td><td>" + fmt(left, 2) + "</td><td>" + fmtQty(left / p.Ps) + "</td></tr>";
-  }
-  document.getElementById("table-budget").innerHTML =
-    "<table class=\"bundle\"><thead><tr><th>Burgers</th>" +
-    "<th>Spent on burgers</th><th>Left for soda</th><th>Cans of soda</th></tr></thead>" +
-    "<tbody>" + rows + "</tbody></table>";
-
-  const plotDiv = document.getElementById("plot-budget");
-  Plotly.react(plotDiv, traces, layout, { responsive: true, displayModeBar: false })
-    .then(() => Plotly.Plots.resize(plotDiv));
+  Plotly.react("plot-budget", traces, layout, { responsive: true, displayModeBar: false });
 }
 
 window.addEventListener("DOMContentLoaded", () => {
