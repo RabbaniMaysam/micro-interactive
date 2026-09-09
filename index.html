@@ -242,6 +242,13 @@
   .knob-row { display: flex; align-items: center; gap: 0.6em; padding: 0.15em 30px 0 24px; }
   .knob-row .knob-name { font-size: 0.85em; font-weight: 600; color: var(--primary); width: 4em; }
   .knob-row input[type=range] { flex: 1 1 auto; accent-color: var(--primary); margin: 0; }
+  /* the knob's original (center) position, marked by a tick behind the thumb */
+  .knob-row .knob-track { flex: 1 1 auto; position: relative; display: flex; }
+  .knob-row .knob-track input[type=range] { width: 100%; position: relative; z-index: 1; }
+  .knob-row .knob-track::before {
+    content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 3px;
+    background: var(--primary); transform: translateX(-50%); pointer-events: none; z-index: 0;
+  }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -384,11 +391,11 @@
     <div id="plot-seq" class="plot eq-plot"></div>
     <div class="knob-row">
       <span class="knob-name">Shift D</span>
-      <input type="range" id="knob-seq-d" min="-35" max="35" step="1" value="0" autocomplete="off">
+      <div class="knob-track"><input type="range" id="knob-seq-d" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
     </div>
     <div class="knob-row">
       <span class="knob-name">Shift S</span>
-      <input type="range" id="knob-seq-s" min="-35" max="35" step="1" value="0" autocomplete="off">
+      <div class="knob-track"><input type="range" id="knob-seq-s" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
     </div>
   </section>
 </div>
@@ -710,25 +717,28 @@ const CURVES = {
   }
 };
 
-function dsAxes() {
+// frame = { xMax, yMax }; the shift-equilibrium tool uses a larger frame
+function dsAxes(frame = {}) {
+  const xMax = frame.xMax || DS_X_MAX, yMax = frame.yMax || DS_Y_MAX;
   return {
-    xaxis: { range: [0, DS_X_MAX], fixedrange: true, showline: false, zeroline: false,
+    xaxis: { range: [0, xMax], fixedrange: true, showline: false, zeroline: false,
              showticklabels: false, showgrid: false, ticks: "" },
-    yaxis: { range: [0, DS_Y_MAX], fixedrange: true, showline: false, zeroline: false,
+    yaxis: { range: [0, yMax], fixedrange: true, showline: false, zeroline: false,
              showticklabels: false, showgrid: false, ticks: "" }
   };
 }
-function dsAxisArrows(xLabel, yLabel) {
+function dsAxisArrows(xLabel, yLabel, frame = {}) {
+  const xMax = frame.xMax || DS_X_MAX, yMax = frame.yMax || DS_Y_MAX;
   const arrow = { xref: "x", yref: "y", axref: "x", ayref: "y", ax: 0, ay: 0,
                   showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5,
                   arrowcolor: "#111", text: "" };
   const out = [
-    { ...arrow, x: DS_X_MAX - 3, y: 0 },
-    { ...arrow, x: 0, y: DS_Y_MAX - 2 }
+    { ...arrow, x: xMax - 3, y: 0 },
+    { ...arrow, x: 0, y: yMax - 2 }
   ];
-  if (xLabel) out.push({ text: xLabel, x: DS_X_MAX - 3, y: 0, xanchor: "left", xshift: 6,
+  if (xLabel) out.push({ text: xLabel, x: xMax - 3, y: 0, xanchor: "left", xshift: 6,
                          showarrow: false, font: { color: "#111", size: 15 } });
-  if (yLabel) out.push({ text: yLabel, x: 0, y: DS_Y_MAX - 2, yanchor: "bottom", yshift: 4,
+  if (yLabel) out.push({ text: yLabel, x: 0, y: yMax - 2, yanchor: "bottom", yshift: 4,
                          showarrow: false, font: { color: "#111", size: 15 } });
   return out;
 }
@@ -875,16 +885,38 @@ function drawEquilibrium() {
 // Q2, and blue arrows along each axis show the direction from 1 to 2. No
 // numbers anywhere.
 // ----------------------------------------------------------------------
-const SEQ_Q0 = 12, SEQ_Q1 = 95, SEQ_X_END = DS_X_MAX - 3;
+// Each segment covers Q = 50 +- SEQ_HALF before its shift (short, so a large
+// shift stays inside the frame); the knobs reach +-56. When a crossing would
+// fall within SEQ_PAD of a segment's end, or beyond it, that end is extended
+// so the crossing stays visibly on both curves. The y range is taller than in
+// the other tools (SEQ_Y_MAX) so opposite extreme shifts keep e2 in the frame.
+// The frame is wider and taller than in the other tools and e1 sits at its
+// center, so that with both knobs at +-56 the new crossing (Q1 +- 56 or
+// P1 +- 56) stays inside the frame.
+const SEQ_HALF = 29, SEQ_PAD = 8;   // the knobs in the HTML reach +-56
+const SEQ_E1 = { Q: 64, P: 62 };
+const SEQ_FRAME = { xMax: SEQ_E1.Q * 2, yMax: SEQ_E1.P * 2 };
+const SEQ_X_END = SEQ_FRAME.xMax - 3;
+const SEQ_CURVES = {
+  demand: { pAt: q => SEQ_E1.P + (SEQ_E1.Q - q) },
+  supply: { pAt: q => SEQ_E1.P + (q - SEQ_E1.Q) }
+};
 
-function seqLine(c, shift, color) {
-  return { x: [SEQ_Q0 + shift, SEQ_Q1 + shift], y: [c.pAt(SEQ_Q0), c.pAt(SEQ_Q1)],
+// x range of the segment on the line shifted by `shift`, extended to include
+// every crossing (in shifted Q units) listed in `qs`
+function seqSpan(shift, qs) {
+  let x0 = SEQ_E1.Q - SEQ_HALF + shift, x1 = SEQ_E1.Q + SEQ_HALF + shift;
+  qs.forEach(q => { x0 = Math.min(x0, q - SEQ_PAD); x1 = Math.max(x1, q + SEQ_PAD); });
+  return [x0, x1];
+}
+function seqLine(c, shift, span, color) {
+  return { x: span, y: [c.pAt(span[0] - shift), c.pAt(span[1] - shift)],
            mode: "lines", line: { color: color, width: 3 }, hoverinfo: "skip",
            cliponaxis: true };
 }
 // label at the right end of a (possibly clipped) shifted line
-function seqEndLabel(c, shift, text, color) {
-  const x = Math.min(SEQ_Q1 + shift, SEQ_X_END);
+function seqEndLabel(c, shift, span, text, color) {
+  const x = Math.min(span[1], SEQ_X_END);
   return { text: text, x: x, y: c.pAt(x - shift), xanchor: "left", yanchor: "middle",
            xshift: 5, showarrow: false, font: { color: color, size: 15 } };
 }
@@ -892,16 +924,20 @@ function seqEndLabel(c, shift, text, color) {
 function drawShiftEq() {
   const sd = parseFloat(document.getElementById("knob-seq-d").value);
   const ss = parseFloat(document.getElementById("knob-seq-s").value);
-  const d = CURVES.demand, s = CURVES.supply;
-  const Q1 = 50, P1 = 55;
-  const Q2 = 50 + (sd + ss) / 2, P2 = 55 + (sd - ss) / 2;
+  const d = SEQ_CURVES.demand, s = SEQ_CURVES.supply;
+  const Q1 = SEQ_E1.Q, P1 = SEQ_E1.P;
+  const Q2 = Q1 + (sd + ss) / 2, P2 = P1 + (sd - ss) / 2;
   const moved = sd !== 0 || ss !== 0;
   const blue = "#2563eb";
 
-  const traces = [seqLine(d, 0, "#111"), seqLine(s, 0, "#111")];
-  const annotations = dsAxisArrows("Q", "P").concat([
-    seqEndLabel(d, 0, "D<sub>1</sub>", "#111"),
-    seqEndLabel(s, 0, "S<sub>1</sub>", "#111")
+  // e1 lies on both original curves; e2 lies on an original curve only when
+  // that curve did not shift
+  const spanD1 = seqSpan(0, moved && sd === 0 ? [Q1, Q2] : [Q1]);
+  const spanS1 = seqSpan(0, moved && ss === 0 ? [Q1, Q2] : [Q1]);
+  const traces = [seqLine(d, 0, spanD1, "#111"), seqLine(s, 0, spanS1, "#111")];
+  const annotations = dsAxisArrows("Q", "P", SEQ_FRAME).concat([
+    seqEndLabel(d, 0, spanD1, "D<sub>1</sub>", "#111"),
+    seqEndLabel(s, 0, spanS1, "S<sub>1</sub>", "#111")
   ]);
   const guide = (Q, P, color) => ({
     x: [0, Q, Q], y: [P, P, 0], mode: "lines",
@@ -930,8 +966,14 @@ function drawShiftEq() {
                    axisLabel("Q<sub>1</sub>", Q1, 0, "#111", false));
 
   if (moved) {
-    if (sd !== 0) { traces.push(seqLine(d, sd, blue)); annotations.push(seqEndLabel(d, sd, "D<sub>2</sub>", blue)); }
-    if (ss !== 0) { traces.push(seqLine(s, ss, blue)); annotations.push(seqEndLabel(s, ss, "S<sub>2</sub>", blue)); }
+    if (sd !== 0) {
+      const sp = seqSpan(sd, [Q2]);
+      traces.push(seqLine(d, sd, sp, blue)); annotations.push(seqEndLabel(d, sd, sp, "D<sub>2</sub>", blue));
+    }
+    if (ss !== 0) {
+      const sp = seqSpan(ss, [Q2]);
+      traces.push(seqLine(s, ss, sp, blue)); annotations.push(seqEndLabel(s, ss, sp, "S<sub>2</sub>", blue));
+    }
     traces.push(guide(Q2, P2, blue), point(Q2, P2, blue));
     annotations.push(eLabel("e<sub>2</sub>", Q2, P2, blue),
                      axisLabel("P<sub>2</sub>", 0, P2, blue, true, P2 === P1 ? 17 : 0),
@@ -943,7 +985,7 @@ function drawShiftEq() {
     if (Q2 !== Q1) annotations.push({ ...arrow, x: Q2, y: 3, ax: Q1, ay: 3 });
   }
 
-  const layout = { margin: { l: 30, r: 30, t: 20, b: 26 }, ...dsAxes(),
+  const layout = { margin: { l: 30, r: 30, t: 20, b: 26 }, ...dsAxes(SEQ_FRAME),
                    showlegend: false, annotations };
   Plotly.react("plot-seq", traces, layout, { responsive: true, displayModeBar: false });
 }
