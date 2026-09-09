@@ -32,6 +32,7 @@
     padding: 1.2em 2em;
   }
   header h1 { margin: 0; font-size: 1.4em; font-weight: 600; }
+  header .byline { margin: 0.25em 0 0; font-size: 0.95em; opacity: 0.9; }
 
   .layout {
     display: grid;
@@ -262,6 +263,7 @@
 
 <header>
   <h1>Introductory Microeconomics: Interactive Tools</h1>
+  <p class="byline">By: Maysam Rabbani</p>
 </header>
 
 <div class="layout">
@@ -310,7 +312,7 @@
   <section class="tool-card">
     <div class="two-panel">
       <div class="panel">
-        <h3>Movement along the demand curve</h3>
+        <h3>Movement along</h3>
         <div class="panel-body vertical">
           <div class="vslider">
             <input type="range" class="vertical" id="knob-move" min="25" max="80" step="1" value="50" autocomplete="off">
@@ -319,7 +321,7 @@
         </div>
       </div>
       <div class="panel">
-        <h3>Shift of the demand curve</h3>
+        <h3>Shift</h3>
         <div class="panel-body">
           <div id="plot-shift" class="plot panel-plot"></div>
           <div class="hslider">
@@ -347,7 +349,7 @@
   <section class="tool-card">
     <div class="two-panel">
       <div class="panel">
-        <h3>Movement along the supply curve</h3>
+        <h3>Movement along</h3>
         <div class="panel-body vertical">
           <div class="vslider">
             <input type="range" class="vertical" id="knob-smove" min="30" max="85" step="1" value="55" autocomplete="off">
@@ -356,7 +358,7 @@
         </div>
       </div>
       <div class="panel">
-        <h3>Shift of the supply curve</h3>
+        <h3>Shift</h3>
         <div class="panel-body">
           <div id="plot-sshift" class="plot panel-plot"></div>
           <div class="hslider">
@@ -602,22 +604,21 @@ function drawBudget(p) {
 // order. Quantity is on the horizontal axis (0 to 100), price on the
 // vertical axis (rescaled to the largest price entered). The demand
 // experiment (flagship iPhone) and the supply experiment (tutoring for 3
-// hours) share the code; a config names the elements and titles.
+// hours) share the code; a config names the elements. Column headers and
+// axis titles are the bare words Price and Quantity (no units, no "of
+// 100"): the user's clutter rule, September 9, 2026.
 // ----------------------------------------------------------------------
 const EXP_ROWS = 5;
 const EXP_P_DEFAULT_MAX = 2000;
 
 const EXPERIMENTS = {
-  demand: { table: "table-demand", plot: "plot-demand", priceHeader: "Price ($)",
-            yTitle: "Price ($)", xTitle: "Quantity (phones sold in a room of 100)" },
-  supply: { table: "table-supply", plot: "plot-supply", priceHeader: "Payment ($)",
-            yTitle: "Payment ($)", xTitle: "Quantity (tutors in a room of 100)" }
+  demand: { table: "table-demand", plot: "plot-demand" },
+  supply: { table: "table-supply", plot: "plot-supply" }
 };
 
 function buildExperimentTable(cfg) {
   const table = document.getElementById(cfg.table);
-  let html = "<thead><tr><th></th><th>" + cfg.priceHeader +
-             "</th><th>Quantity (of 100)</th></tr></thead><tbody>";
+  let html = "<thead><tr><th></th><th>Price</th><th>Quantity</th></tr></thead><tbody>";
   for (let i = 0; i < EXP_ROWS; i++) {
     html += "<tr><td class=\"idx\">" + (i + 1) + "</td>" +
       "<td><input type=\"text\" inputmode=\"decimal\" class=\"num\" data-row=\"" + i + "\" data-col=\"p\"></td>" +
@@ -677,8 +678,8 @@ function drawExperiment(cfg) {
 
   const layout = {
     margin: { l: 70, r: 60, t: 30, b: 60 },
-    xaxis: { title: cfg.xTitle, range: [0, 100], fixedrange: true, zeroline: true, dtick: 10 },
-    yaxis: { title: cfg.yTitle, range: [0, yTop], fixedrange: true, zeroline: true },
+    xaxis: { title: "Quantity", range: [0, 100], fixedrange: true, zeroline: true, dtick: 10 },
+    yaxis: { title: "Price", range: [0, yTop], fixedrange: true, zeroline: true },
     showlegend: false
   };
 

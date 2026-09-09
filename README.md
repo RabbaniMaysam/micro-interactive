@@ -14,7 +14,7 @@ so the chapter list is not exhaustive.
 | 1 | `#budget-line` | Budget line | budget $10 (5 to 15), burger $2 (1 to 4), can of soda $1 (0.5 to 2); axes fixed at 10 burgers by 15 cans |
 | 3 | `#demand-experiment` | Demand experiment | five empty rows of price and quantity (0 to 100), typed in class; points plotted and connected in row order |
 | 3 | `#demand-move-shift` | Demand: movement along vs. shift | two panels, no card title, each with its own title; the demand line is the segment of P = 105 - Q from Q = 20 to 85, floating inside arrow axes (Plotly's axes hidden, arrows drawn as annotations); left: a vertical price knob (25 to 80) slides a point along the curve and marks P and Q on the axes, no axis titles; right: axes labeled P and Q, a horizontal knob (-25 to 25) draws a blue shifted line beside the black original, an arrow between their midpoints, D1 and D2 at the same height beside the lines' right ends (D2 withheld while the shift is under 7), and "D" with a tight up or down arrow beside the middle of the blue line on the side away from the black one |
-| 3 | `#supply-experiment` | Supply experiment | mirror of the demand experiment from ch03 slide 21 (tutoring for 3 hours): Payment and Quantity columns, same code via a config |
+| 3 | `#supply-experiment` | Supply experiment | mirror of the demand experiment from ch03 slide 21 (tutoring for 3 hours): same code via a config; both experiments label the columns and axes with the bare words Price and Quantity (no units, no "of 100"; the user's clutter rule, September 9, 2026) |
 | 3 | `#supply-move-shift` | Supply: movement along vs. shift | mirror of the demand tool on the segment of P = Q + 5 from Q = 20 to 85; price knob 30 to 85; labels S, S1, S2, and "S" with an arrow placed below and right of the blue line for a rightward shift |
 | 3 | `#equilibrium` | Equilibrium, surplus, and shortage | the two segments above cross at Q = 50, P = 55; a vertical price knob (30 to 80, default 55) marks P on the axis; at 55 one point with Q = 50; away from it two open points on D and S, dotted guides, Qd and Qs on the axis, and, only while the "Show labels" toggle at the top right is on, Qd and Qs names plus a thick dark red segment between the points labeled "Surplus = n" above 55 or "Shortage = n" below; the toggle is off by default and on every reopen (no spoilers), and with it off both quantities read plainly as "Q = n" |
 | 3 | `#shift-equilibrium` | Shifts and the new equilibrium | its own frame (Q 0 to 128, P 0 to 124) with e1 at its center (64, 62) and short D and S segments (Q 35 to 93 before a shift); two horizontal knobs (Shift D, Shift S, each -56 to 56, a tick marking the center) draw the shifted curve in blue as D2 or S2, the new crossing e2, P1, P2, Q1, Q2 on the axes with no numbers, and blue arrows hugging each axis from 1 to 2; a shifted curve's segment is centered on e2 (it slides along its own line as it shifts, so the other curve always cuts it at its midpoint), and an original curve's end is extended when e2 would fall within 8 units of it; a "2" label is offset when it would print on the "1" label |
@@ -45,6 +45,10 @@ function; register it in the `DOMContentLoaded` handler with
 `makeControls`. Add the anchor to the sidebar list under its chapter
 (chapters are plain labels, tools are links) and, for a new chapter, a
 link in the top nav.
+
+The header carries a byline, "By: Maysam Rabbani", under the site title
+(added September 9, 2026). The two-panel tools title their panels with the
+bare words "Movement along" and "Shift".
 
 House style (the user's, September 8, 2026): no prose on the page beyond
 titles. No introductions, descriptions, equations, readouts, tables, or
