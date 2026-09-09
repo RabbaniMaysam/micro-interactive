@@ -238,6 +238,10 @@
   .eq-plot { height: 360px; flex: 1 1 auto; min-width: 0; }
   .vslider.tall input[type=range].vertical { height: 310px; }
   .hslider { padding: 0 30px 0 20px; }
+  /* Named horizontal knobs under a single figure */
+  .knob-row { display: flex; align-items: center; gap: 0.6em; padding: 0.15em 30px 0 24px; }
+  .knob-row .knob-name { font-size: 0.85em; font-weight: 600; color: var(--primary); width: 4em; }
+  .knob-row input[type=range] { flex: 1 1 auto; accent-color: var(--primary); margin: 0; }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -268,6 +272,7 @@
     <li><a href="#supply-experiment">Supply experiment</a></li>
     <li><a href="#supply-move-shift">Supply: movement along vs. shift</a></li>
     <li><a href="#equilibrium">Equilibrium, surplus, and shortage</a></li>
+    <li><a href="#shift-equilibrium">Shifts and the new equilibrium</a></li>
   </ul>
 </aside>
 
@@ -368,6 +373,22 @@
         <input type="range" class="vertical" id="knob-eq" min="30" max="80" step="1" value="55" autocomplete="off">
       </div>
       <div id="plot-eq" class="plot eq-plot"></div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="shift-equilibrium">
+  <h2 class="group-heading">Chapter 3: Demand, supply, and market equilibrium</h2>
+  <section class="tool-card">
+    <h2>Shifts and the new equilibrium</h2>
+    <div id="plot-seq" class="plot eq-plot"></div>
+    <div class="knob-row">
+      <span class="knob-name">Shift D</span>
+      <input type="range" id="knob-seq-d" min="-35" max="35" step="1" value="0" autocomplete="off">
+    </div>
+    <div class="knob-row">
+      <span class="knob-name">Shift S</span>
+      <input type="range" id="knob-seq-s" min="-35" max="35" step="1" value="0" autocomplete="off">
     </div>
   </section>
 </div>
@@ -845,6 +866,88 @@ function drawEquilibrium() {
   Plotly.react("plot-eq", traces, layout, { responsive: true, displayModeBar: false });
 }
 
+// ----------------------------------------------------------------------
+// Tool 7: shifts and the new equilibrium. Longer D and S segments (Q from
+// 12 to 95) so that the crossing stays on both even at the extreme
+// shifts. Two knobs shift D and S by sd and ss units. The original
+// crossing is e1 with P1 and Q1 on the axes; once a knob leaves the
+// center, the shifted curve is blue, the new crossing is e2 with P2 and
+// Q2, and blue arrows along each axis show the direction from 1 to 2. No
+// numbers anywhere.
+// ----------------------------------------------------------------------
+const SEQ_Q0 = 12, SEQ_Q1 = 95, SEQ_X_END = DS_X_MAX - 3;
+
+function seqLine(c, shift, color) {
+  return { x: [SEQ_Q0 + shift, SEQ_Q1 + shift], y: [c.pAt(SEQ_Q0), c.pAt(SEQ_Q1)],
+           mode: "lines", line: { color: color, width: 3 }, hoverinfo: "skip",
+           cliponaxis: true };
+}
+// label at the right end of a (possibly clipped) shifted line
+function seqEndLabel(c, shift, text, color) {
+  const x = Math.min(SEQ_Q1 + shift, SEQ_X_END);
+  return { text: text, x: x, y: c.pAt(x - shift), xanchor: "left", yanchor: "middle",
+           xshift: 5, showarrow: false, font: { color: color, size: 15 } };
+}
+
+function drawShiftEq() {
+  const sd = parseFloat(document.getElementById("knob-seq-d").value);
+  const ss = parseFloat(document.getElementById("knob-seq-s").value);
+  const d = CURVES.demand, s = CURVES.supply;
+  const Q1 = 50, P1 = 55;
+  const Q2 = 50 + (sd + ss) / 2, P2 = 55 + (sd - ss) / 2;
+  const moved = sd !== 0 || ss !== 0;
+  const blue = "#2563eb";
+
+  const traces = [seqLine(d, 0, "#111"), seqLine(s, 0, "#111")];
+  const annotations = dsAxisArrows("Q", "P").concat([
+    seqEndLabel(d, 0, "D<sub>1</sub>", "#111"),
+    seqEndLabel(s, 0, "S<sub>1</sub>", "#111")
+  ]);
+  const guide = (Q, P, color) => ({
+    x: [0, Q, Q], y: [P, P, 0], mode: "lines",
+    line: { color: color, width: 1.5, dash: "dot" }, hoverinfo: "skip"
+  });
+  const point = (Q, P, color) => ({
+    x: [Q], y: [P], mode: "markers",
+    marker: { size: 13, color: "#fff", line: { color: color, width: 3 } }, hoverinfo: "skip"
+  });
+  // extra: pixel offset used when P2 = P1 (or Q2 = Q1) so the "2" label
+  // does not print on top of the "1" label: P2 moves up, Q2 moves right
+  // (the margins are too thin to move them further out)
+  const axisLabel = (text, x, y, color, vertical, extra) => vertical
+    ? { text: text, x: 0, y: y, xanchor: "right", yanchor: "middle", xshift: -4,
+        yshift: extra || 0, showarrow: false, font: { color: color, size: 14 } }
+    : { text: text, x: x, y: 0, yanchor: "top", yshift: -5, xshift: extra || 0,
+        showarrow: false, font: { color: color, size: 14 } };
+  const eLabel = (text, Q, P, color) => ({
+    text: text, x: Q, y: P, xanchor: "left", yanchor: "bottom", xshift: 10, yshift: 8,
+    showarrow: false, font: { color: color, size: 15 }
+  });
+
+  traces.push(guide(Q1, P1, "#6b7280"), point(Q1, P1, "#111"));
+  annotations.push(eLabel("e<sub>1</sub>", Q1, P1, "#111"),
+                   axisLabel("P<sub>1</sub>", 0, P1, "#111", true),
+                   axisLabel("Q<sub>1</sub>", Q1, 0, "#111", false));
+
+  if (moved) {
+    if (sd !== 0) { traces.push(seqLine(d, sd, blue)); annotations.push(seqEndLabel(d, sd, "D<sub>2</sub>", blue)); }
+    if (ss !== 0) { traces.push(seqLine(s, ss, blue)); annotations.push(seqEndLabel(s, ss, "S<sub>2</sub>", blue)); }
+    traces.push(guide(Q2, P2, blue), point(Q2, P2, blue));
+    annotations.push(eLabel("e<sub>2</sub>", Q2, P2, blue),
+                     axisLabel("P<sub>2</sub>", 0, P2, blue, true, P2 === P1 ? 17 : 0),
+                     axisLabel("Q<sub>2</sub>", Q2, 0, blue, false, Q2 === Q1 ? 24 : 0));
+    // direction arrows hugging the axes: along P from P1 to P2, along Q from Q1 to Q2
+    const arrow = { xref: "x", yref: "y", axref: "x", ayref: "y", showarrow: true,
+                    arrowhead: 2, arrowsize: 1.3, arrowwidth: 2.5, arrowcolor: blue, text: "" };
+    if (P2 !== P1) annotations.push({ ...arrow, x: 3, y: P2, ax: 3, ay: P1 });
+    if (Q2 !== Q1) annotations.push({ ...arrow, x: Q2, y: 3, ax: Q1, ay: 3 });
+  }
+
+  const layout = { margin: { l: 30, r: 30, t: 20, b: 26 }, ...dsAxes(),
+                   showlegend: false, annotations };
+  Plotly.react("plot-seq", traces, layout, { responsive: true, displayModeBar: false });
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -866,6 +969,12 @@ window.addEventListener("DOMContentLoaded", () => {
   TOOLS["equilibrium"] = {
     redraw: drawEquilibrium,
     reset: () => { resetKnob("knob-eq"); document.getElementById("toggle-eq").checked = false; }
+  };
+  document.getElementById("knob-seq-d").addEventListener("input", drawShiftEq);
+  document.getElementById("knob-seq-s").addEventListener("input", drawShiftEq);
+  TOOLS["shift-equilibrium"] = {
+    redraw: drawShiftEq,
+    reset: () => { resetKnob("knob-seq-d"); resetKnob("knob-seq-s"); }
   };
 
   showTool(location.hash.replace("#", ""));
