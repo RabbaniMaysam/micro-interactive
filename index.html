@@ -284,7 +284,7 @@
         <h3>Movement along the demand curve</h3>
         <div class="panel-body vertical">
           <div class="vslider">
-            <input type="range" class="vertical" id="knob-move" min="25" max="80" step="1" value="50">
+            <input type="range" class="vertical" id="knob-move" min="25" max="80" step="1" value="50" autocomplete="off">
           </div>
           <div id="plot-move" class="plot panel-plot"></div>
         </div>
@@ -294,7 +294,7 @@
         <div class="panel-body">
           <div id="plot-shift" class="plot panel-plot"></div>
           <div class="hslider">
-            <input type="range" id="knob-shift" min="-25" max="25" step="1" value="0">
+            <input type="range" id="knob-shift" min="-25" max="25" step="1" value="0" autocomplete="off">
           </div>
         </div>
       </div>
@@ -310,8 +310,12 @@
 // ----------------------------------------------------------------------
 // Page routing. Each tool lives in its own .tool-page; the URL hash names
 // the visible one (default: the first). Plotly cannot size a figure inside
-// a hidden element, so every tool registers a redraw function in TOOLS
-// and the router calls it after showing the page.
+// a hidden element, so every tool registers {redraw, reset} in TOOLS; the
+// router resets a knob tool to its defaults and redraws it whenever it is
+// shown. Browsers restore form values across a refresh, so the reset on
+// page load is what makes a refresh start from the defaults. The demand
+// experiment's typed table is kept when switching tools (reset only on
+// load, in buildDemandTable).
 // ----------------------------------------------------------------------
 const TOOLS = {};
 
@@ -324,7 +328,16 @@ function showTool(id) {
   document.querySelectorAll("aside.sidebar a").forEach(a => {
     a.classList.toggle("active", a.getAttribute("href") === "#" + id);
   });
-  if (TOOLS[id]) TOOLS[id]();
+  if (TOOLS[id]) {
+    if (TOOLS[id].reset) TOOLS[id].reset();
+    TOOLS[id].redraw();
+  }
+}
+
+// Put a range input back to the value in its HTML attribute.
+function resetKnob(id) {
+  const k = document.getElementById(id);
+  k.value = k.getAttribute("value");
 }
 
 // ----------------------------------------------------------------------
@@ -359,7 +372,7 @@ function makeControls(container, specs, onChange) {
   resetDiv.className = "control reset";
   resetDiv.innerHTML = "<button class=\"reset-btn\">Reset</button>";
   container.appendChild(resetDiv);
-  resetDiv.querySelector("button").addEventListener("click", () => {
+  function reset() {
     const inputs = container.querySelectorAll("input[type=range]");
     const values = container.querySelectorAll(".value");
     Object.keys(specs).forEach((k, i) => {
@@ -367,9 +380,12 @@ function makeControls(container, specs, onChange) {
       inputs[i].value = specs[k].value;
       values[i].textContent = fmt(local[k], specs[k].fmt);
     });
+  }
+  resetDiv.querySelector("button").addEventListener("click", () => {
+    reset();
     onChange(local);
   });
-  return () => onChange(local);
+  return { redraw: () => onChange(local), reset: reset };
 }
 
 function fmt(v, digits) {
@@ -502,7 +518,12 @@ function buildDemandTable() {
   html += "<tr><td></td><td class=\"actions\" colspan=\"2\">" +
           "<button class=\"reset-btn\" id=\"clear-demand\">Clear</button></td></tr></tbody>";
   table.innerHTML = html;
-  table.querySelectorAll("input").forEach(inp => inp.addEventListener("input", drawDemand));
+  // fresh boxes on every page load (autocomplete off defeats form restoration)
+  table.querySelectorAll("input").forEach(inp => {
+    inp.value = "";
+    inp.setAttribute("autocomplete", "off");
+    inp.addEventListener("input", drawDemand);
+  });
   document.getElementById("clear-demand").addEventListener("click", () => {
     table.querySelectorAll("input").forEach(inp => { inp.value = ""; });
     drawDemand();
@@ -667,10 +688,13 @@ window.addEventListener("DOMContentLoaded", () => {
   TOOLS["budget-line"] =
     makeControls(document.getElementById("ctrl-budget"), BUDGET_SPECS, drawBudget);
   buildDemandTable();
-  TOOLS["demand-experiment"] = drawDemand;
+  TOOLS["demand-experiment"] = { redraw: drawDemand };
   document.getElementById("knob-move").addEventListener("input", drawMove);
   document.getElementById("knob-shift").addEventListener("input", drawShift);
-  TOOLS["demand-move-shift"] = () => { drawMove(); drawShift(); };
+  TOOLS["demand-move-shift"] = {
+    redraw: () => { drawMove(); drawShift(); },
+    reset: () => { resetKnob("knob-move"); resetKnob("knob-shift"); }
+  };
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
@@ -682,7 +706,7 @@ window.addEventListener("DOMContentLoaded", () => {
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(() => {
       const active = document.querySelector(".tool-page.active");
-      if (active && TOOLS[active.id]) TOOLS[active.id]();
+      if (active && TOOLS[active.id]) TOOLS[active.id].redraw();
     }, 150);
   });
 });
