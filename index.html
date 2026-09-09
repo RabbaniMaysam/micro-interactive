@@ -946,7 +946,7 @@ function drawShiftEq() {
   });
   const point = (Q, P, color) => ({
     x: [Q], y: [P], mode: "markers",
-    marker: { size: 13, color: "#fff", line: { color: color, width: 3 } }, hoverinfo: "skip"
+    marker: { size: 9, color: color }, hoverinfo: "skip"
   });
   // extra: pixel offset used when P2 = P1 (or Q2 = Q1) so the "2" label
   // does not print on top of the "1" label: P2 moves up, Q2 moves right
@@ -957,7 +957,7 @@ function drawShiftEq() {
     : { text: text, x: x, y: 0, yanchor: "top", yshift: -5, xshift: extra || 0,
         showarrow: false, font: { color: color, size: 14 } };
   const eLabel = (text, Q, P, color) => ({
-    text: text, x: Q, y: P, xanchor: "left", yanchor: "bottom", xshift: 10, yshift: 8,
+    text: text, x: Q, y: P, xanchor: "center", yanchor: "bottom", yshift: 6,
     showarrow: false, font: { color: color, size: 15 }
   });
 
