@@ -902,10 +902,12 @@ const SEQ_CURVES = {
   supply: { pAt: q => SEQ_E1.P + (q - SEQ_E1.Q) }
 };
 
-// x range of the segment on the line shifted by `shift`, extended to include
-// every crossing (in shifted Q units) listed in `qs`
-function seqSpan(shift, qs) {
-  let x0 = SEQ_E1.Q - SEQ_HALF + shift, x1 = SEQ_E1.Q + SEQ_HALF + shift;
+// x range of a segment centered at Q = `center`, extended to include every
+// crossing listed in `qs`. Original curves are centered at Q1; a shifted
+// curve is centered at the new crossing Q2, so it slides along its own line
+// as it shifts and the other curve always cuts it at its midpoint.
+function seqSpan(center, qs) {
+  let x0 = center - SEQ_HALF, x1 = center + SEQ_HALF;
   qs.forEach(q => { x0 = Math.min(x0, q - SEQ_PAD); x1 = Math.max(x1, q + SEQ_PAD); });
   return [x0, x1];
 }
@@ -932,13 +934,12 @@ function drawShiftEq() {
 
   // e1 lies on both original curves; e2 lies on an original curve only when
   // that curve did not shift
-  const spanD1 = seqSpan(0, moved && sd === 0 ? [Q1, Q2] : [Q1]);
-  const spanS1 = seqSpan(0, moved && ss === 0 ? [Q1, Q2] : [Q1]);
+  const spanD1 = seqSpan(Q1, moved && sd === 0 ? [Q2] : []);
+  const spanS1 = seqSpan(Q1, moved && ss === 0 ? [Q2] : []);
   const traces = [seqLine(d, 0, spanD1, "#111"), seqLine(s, 0, spanS1, "#111")];
-  const annotations = dsAxisArrows("Q", "P", SEQ_FRAME).concat([
-    seqEndLabel(d, 0, spanD1, "D<sub>1</sub>", "#111"),
-    seqEndLabel(s, 0, spanS1, "S<sub>1</sub>", "#111")
-  ]);
+  const black = [seqEndLabel(d, 0, spanD1, "D<sub>1</sub>", "#111"),
+                 seqEndLabel(s, 0, spanS1, "S<sub>1</sub>", "#111")];
+  const annotations = dsAxisArrows("Q", "P", SEQ_FRAME).concat(black);
   const guide = (Q, P, color) => ({
     x: [0, Q, Q], y: [P, P, 0], mode: "lines",
     line: { color: color, width: 1.5, dash: "dot" }, hoverinfo: "skip"
@@ -966,14 +967,17 @@ function drawShiftEq() {
                    axisLabel("Q<sub>1</sub>", Q1, 0, "#111", false));
 
   if (moved) {
-    if (sd !== 0) {
-      const sp = seqSpan(sd, [Q2]);
-      traces.push(seqLine(d, sd, sp, blue)); annotations.push(seqEndLabel(d, sd, sp, "D<sub>2</sub>", blue));
-    }
-    if (ss !== 0) {
-      const sp = seqSpan(ss, [Q2]);
-      traces.push(seqLine(s, ss, sp, blue)); annotations.push(seqEndLabel(s, ss, sp, "S<sub>2</sub>", blue));
-    }
+    const sp2 = seqSpan(Q2, []);
+    // at opposite extreme shifts a blue end label lands on a black one
+    // (D2 on S1, or S2 on D1): drop it below the line end
+    const nudge = (lab, others) => {
+      if (others.some(o => Math.abs(o.x - lab.x) < 5 && Math.abs(o.y - lab.y) < 5)) {
+        lab.yanchor = "top"; lab.yshift = -6;
+      }
+      return lab;
+    };
+    if (sd !== 0) { traces.push(seqLine(d, sd, sp2, blue)); annotations.push(nudge(seqEndLabel(d, sd, sp2, "D<sub>2</sub>", blue), black)); }
+    if (ss !== 0) { traces.push(seqLine(s, ss, sp2, blue)); annotations.push(nudge(seqEndLabel(s, ss, sp2, "S<sub>2</sub>", blue), black)); }
     traces.push(guide(Q2, P2, blue), point(Q2, P2, blue));
     annotations.push(eLabel("e<sub>2</sub>", Q2, P2, blue),
                      axisLabel("P<sub>2</sub>", 0, P2, blue, true, P2 === P1 ? 17 : 0),
