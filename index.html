@@ -1072,7 +1072,8 @@ function drawShiftEq() {
 // continuous. The vertical knob at the left slides the point along the
 // segment (t = -1 at the lower end, 1 at the upper end, 0 at the middle).
 // Beside the point: the point elasticity E = (dQ/dP)(P/Q), with dQ/dP =
-// -cot(angle) for demand and +cot(angle) for supply, three decimals.
+// -cot(angle) for demand and +cot(angle) for supply, two decimals, tight
+// against the point (offsets of 4px and 1px from its corner).
 // A horizontal line gives an infinite elasticity, a vertical line zero.
 // P and Q of the point are read on the axes, rounded to integers.
 // ----------------------------------------------------------------------
@@ -1087,9 +1088,9 @@ const EL_PANELS = {
 function fmtElasticity(E) {
   // literal minus and infinity signs: Plotly decodes only a few entities
   if (!isFinite(E)) return (E < 0 ? "−" : "") + "∞";
-  const r = Math.round(E * 1000) / 1000;
-  if (r === 0) return "0.000";
-  return (r < 0 ? "−" : "") + Math.abs(r).toFixed(3);
+  const r = Math.round(E * 100) / 100;
+  if (r === 0) return "0.00";
+  return (r < 0 ? "−" : "") + Math.abs(r).toFixed(2);
 }
 
 function drawElasticity(c) {
@@ -1120,7 +1121,7 @@ function drawElasticity(c) {
       showarrow: false, font: { color: "#111", size: 15 } },
     { text: "E<sub>" + c.sub + "</sub> = " + fmtElasticity(E), x: pt.Q, y: pt.P,
       xanchor: right ? "left" : "right", yanchor: up ? "bottom" : "top",
-      xshift: right ? 9 : -9, yshift: up ? 7 : -7,
+      xshift: right ? 4 : -4, yshift: up ? 1 : -1,
       showarrow: false, font: { color: "#012169", size: 16 } },
     { text: "P = " + Math.round(pt.P), x: 0, y: pt.P, xanchor: "center", yanchor: "middle", xshift: -11,
       textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } },
