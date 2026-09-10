@@ -245,6 +245,16 @@
   .vslider.el input[type=range].vertical { height: 290px; }
   .panel-col { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
   .hslider.el { padding: 0 30px 0 24px; }
+  /* Buttons (add or remove a curve) and toggles under a single figure */
+  .button-row { display: flex; align-items: center; gap: 0.6em; padding: 0.3em 30px 0 24px; }
+  .button-row .spacer { flex: 1 1 auto; }
+  .step-btn {
+    background: white; border: 1px solid var(--primary); color: var(--primary);
+    width: 2.6em; height: 2em; border-radius: 4px; cursor: pointer;
+    font-size: 1.1em; line-height: 1; font-weight: 600;
+  }
+  .step-btn:hover:enabled { background: var(--primary); color: white; }
+  .step-btn:disabled { opacity: 0.35; cursor: default; }
   /* Named horizontal knobs under a single figure */
   .knob-row { display: flex; align-items: center; gap: 0.6em; padding: 0.15em 30px 0 24px; }
   .knob-row .knob-name { font-size: 0.85em; font-weight: 600; color: var(--primary); width: 4em; }
@@ -292,6 +302,10 @@
   <div class="chapter">Chapter 6: Elasticity</div>
   <ul>
     <li><a href="#elasticity-slope">Elasticity and slope</a></li>
+  </ul>
+  <div class="chapter">Chapter 9: Costs of production</div>
+  <ul>
+    <li><a href="#long-run-atc">Short-run ATCs and the long-run ATC</a></li>
   </ul>
 </aside>
 
@@ -444,6 +458,21 @@
           </div>
         </div>
       </div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="long-run-atc">
+  <h2 class="group-heading">Chapter 9: Costs of production</h2>
+  <section class="tool-card">
+    <h2>Short-run ATCs and the long-run ATC</h2>
+    <div id="plot-lr" class="plot eq-plot"></div>
+    <div class="button-row">
+      <button class="step-btn" id="btn-lr-minus" title="Remove the last ATC">&minus;</button>
+      <button class="step-btn" id="btn-lr-plus" title="Add the next ATC">+</button>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-dissect" autocomplete="off"> Dissect</label>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-lrac" autocomplete="off"> Long-run ATC</label>
     </div>
   </section>
 </div>
@@ -1144,6 +1173,99 @@ function registerElasticityTool() {
   };
 }
 
+// ----------------------------------------------------------------------
+// Tool 9 (chapter 9): short-run ATCs and the long-run ATC (slides 46 and
+// 47). The long-run ATC is the U-shaped LR(Q). Behind the scenes there
+// are LR_N short-run ATCs; ATC_i is the quadratic tangent to LR at
+// Q = LR_TANGENT(i) with curvature LR_A (larger than LR's), so it lies
+// above LR everywhere else and LR is the lower envelope of the family.
+// Each is drawn over LR_W units on either side of its own minimum, which
+// lies right of the tangency on LR's falling side and left of it on the
+// rising side, as in the textbook. The + and - buttons add the next ATC
+// (ATC_1 first, at the left) and remove the last one. "Dissect" colors
+// each curve blue where it is the lowest of the curves shown and red
+// elsewhere (slide 46); "Long-run ATC" draws the thick envelope (slide 47).
+// ----------------------------------------------------------------------
+const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
+const LR_FRAME = { xMax: 110, yMax: 56 };
+const LR = q => 10 + 0.012 * (q - 50) ** 2;
+const LRd = q => 0.024 * (q - 50);
+const LR_TANGENT = i => 8 + 6 * i;           // i = 0 .. LR_N - 1
+const LR_STATE = { n: 1 };
+const LR_BLUE = "#2563eb", LR_RED = "#dc2626";
+
+function lrCurve(i) {
+  const q = LR_TANGENT(i);
+  const f = Q => LR(q) + LRd(q) * (Q - q) + LR_A * (Q - q) ** 2;
+  const m = q - LRd(q) / (2 * LR_A);          // the curve's own minimum
+  return { f: f, m: m, x0: m - LR_W, x1: m + LR_W };
+}
+
+function drawLongRun() {
+  const dissect = document.getElementById("toggle-lr-dissect").checked;
+  const lrac = document.getElementById("toggle-lr-lrac").checked;
+  const curves = []; for (let i = 0; i < LR_STATE.n; i++) curves.push(lrCurve(i));
+  const traces = [], annotations = dsAxisArrows("Q", "ATC", LR_FRAME);
+  if (lrac) {
+    const xs = [], ys = [];
+    for (let Q = 2; Q <= 98; Q += 1) { xs.push(Q); ys.push(LR(Q)); }
+    traces.push({ x: xs, y: ys, mode: "lines", line: { color: "#012169", width: 5 }, hoverinfo: "skip" });
+    annotations.push({ text: "Long-run ATC", x: 98, y: LR(98), xanchor: "left", yanchor: "middle",
+      xshift: 6, showarrow: false, font: { color: "#012169", size: 15 } });
+  }
+  curves.forEach((c, i) => {
+    const xs = [], ys = [], blue = [];
+    for (let Q = c.x0; Q <= c.x1 + 1e-9; Q += LR_STEP) {
+      const y = c.f(Q);
+      xs.push(Q); ys.push(y);
+      // blue: no other displayed curve is lower at this Q
+      blue.push(!dissect || curves.every((o, j) =>
+        j === i || Q < o.x0 - 1e-9 || Q > o.x1 + 1e-9 || y <= o.f(Q) + 1e-9));
+    }
+    if (!dissect) {
+      traces.push({ x: xs, y: ys, mode: "lines", line: { color: "#111", width: 2.5 }, hoverinfo: "skip" });
+    } else {
+      // each run keeps its boundary neighbors so the two colors join without a gap
+      const near = (k, want) => [k - 1, k, k + 1].some(j => j >= 0 && j < blue.length && blue[j] === want);
+      traces.push(
+        { x: xs, y: ys.map((y, k) => near(k, true) ? y : null), mode: "lines",
+          line: { color: LR_BLUE, width: 2.5 }, connectgaps: false, hoverinfo: "skip" },
+        { x: xs, y: ys.map((y, k) => near(k, false) ? y : null), mode: "lines",
+          line: { color: LR_RED, width: 2.5 }, connectgaps: false, hoverinfo: "skip" });
+    }
+    // The label sits under the curve's minimum, below the long-run ATC
+    // (the lower envelope), where nothing else is drawn; above the tips the
+    // neighbors' tails cross every candidate spot once the family is dense.
+    annotations.push({ text: "ATC<sub>" + (i + 1) + "</sub>", x: c.m, y: LR(c.m),
+      xanchor: "center", yanchor: "top", yshift: -8, showarrow: false,
+      font: { color: "#111", size: 12 } });
+  });
+  const layout = { margin: { l: 30, r: 30, t: 20, b: 26 }, ...dsAxes(LR_FRAME),
+                   showlegend: false, annotations };
+  Plotly.react("plot-lr", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerLongRunTool() {
+  const minus = document.getElementById("btn-lr-minus"), plus = document.getElementById("btn-lr-plus");
+  const update = () => {
+    minus.disabled = LR_STATE.n <= 1;
+    plus.disabled = LR_STATE.n >= LR_N;
+    drawLongRun();
+  };
+  plus.addEventListener("click", () => { if (LR_STATE.n < LR_N) { LR_STATE.n++; update(); } });
+  minus.addEventListener("click", () => { if (LR_STATE.n > 1) { LR_STATE.n--; update(); } });
+  ["toggle-lr-dissect", "toggle-lr-lrac"].forEach(id =>
+    document.getElementById(id).addEventListener("change", drawLongRun));
+  TOOLS["long-run-atc"] = {
+    redraw: update,
+    reset: () => {
+      LR_STATE.n = 1;
+      document.getElementById("toggle-lr-dissect").checked = false;
+      document.getElementById("toggle-lr-lrac").checked = false;
+    }
+  };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1173,6 +1295,7 @@ window.addEventListener("DOMContentLoaded", () => {
     reset: () => { resetKnob("knob-seq-d"); resetKnob("knob-seq-s"); }
   };
   registerElasticityTool();
+  registerLongRunTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
