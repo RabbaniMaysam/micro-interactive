@@ -263,7 +263,7 @@
   .knob-row .knob-track { flex: 1 1 auto; position: relative; display: flex; }
   .knob-row .knob-track input[type=range] { width: 100%; position: relative; z-index: 1; }
   .knob-row .knob-track::before {
-    content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 3px;
+    content: ""; position: absolute; left: var(--tick, 50%); top: -3px; bottom: -3px; width: 3px;
     background: var(--primary); transform: translateX(-50%); pointer-events: none; z-index: 0;
   }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
@@ -271,6 +271,8 @@
      The plot margins are 30px each side; the market subplot covers the
      left MF_SPLIT (0.46) of the plot area. */
   .knob-row.market { box-sizing: border-box; padding: 0.15em 0 0 30px; width: calc(30px + 0.46 * (100% - 60px)); }
+  /* the entry-and-exit tool has margins l 40, r 60 (LR2_MARGIN) */
+  .knob-row.market.lr { padding-left: 40px; width: calc(40px + 0.46 * (100% - 100px)); }
   /* Profit and shutdown tool: the price knob covers P = 2.5 to 14 of a 0 to
      18 scale on a 360px plot with margins t 20, b 30 (plot area 310px), so
      the thumb sits level with the MR line: top at 20 + 310 (1 - 14/18) = 89px,
@@ -324,6 +326,7 @@
   <ul>
     <li><a href="#market-firm">Market price and the firm's demand</a></li>
     <li><a href="#profit-shutdown">Profit and the shutdown decision</a></li>
+    <li><a href="#entry-exit">Entry, exit, and the long run</a></li>
   </ul>
 </aside>
 
@@ -540,6 +543,18 @@
     <div class="remarks">
       <div id="pf-remark-profit"></div>
       <div id="pf-remark-shutdown"></div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="entry-exit">
+  <h2 class="group-heading">Chapter 10: Pure competition</h2>
+  <section class="tool-card">
+    <h2>Entry, exit, and the long run</h2>
+    <div id="plot-ee" class="plot eq-plot"></div>
+    <div class="knob-row market lr">
+      <span class="knob-name">Shift S</span>
+      <div class="knob-track" style="--tick: 22.2%"><input type="range" id="knob-ee" min="-20" max="70" step="1" value="0" autocomplete="off"></div>
     </div>
   </section>
 </div>
@@ -1698,6 +1713,132 @@ function registerProfitTool() {
   };
 }
 
+// ----------------------------------------------------------------------
+// Tool 13 (chapter 10, slides 39 to 45): entry, exit, and the long run.
+// The market-and-firm layout (two subplots, one dotted price line across)
+// on a shared price scale of 0 to 18. Market: D is P = 12 + 0.15 (64 - Q)
+// and S is P = 12 + 0.15 (Q - 64 - s), so the crossing is at
+// Q = 64 + s/2, P = 12 - 0.075 s. Firm: the MC and ATC of the profit tool
+// (ATC minimum 8 at q = 12, on MC), the line D = MR = P at the market
+// price, the point MC = P, and the ATC minimum. The piece of MC between
+// those two points is thick, green when P is above the minimum (profit,
+// entry to come) and red below it (loss, exit); it shrinks to nothing as
+// the knob (s from -20 to 70, default 0 where P = 12) brings P to 8.
+// Once the knob leaves 0, the original S and firm line stay as gray
+// ghosts and an arrow shows the direction of the shift.
+// ----------------------------------------------------------------------
+const EE_MARGIN = { l: 40, r: 60, t: 34, b: 26 };
+const EE_MKT = { xMax: 128, yMax: 18, xPad: 3, yPad: 0.4 };
+const EE_FIRM = { xMax: 22, yMax: 18, xPad: 0.6, yPad: 0.4 };
+const EE_Q0 = 64, EE_P0 = 12, EE_SLOPE = 0.15, EE_HALF = 29, EE_PAD = 8;
+const EE_LINE_END = 19;
+const EE_D = q => EE_P0 + EE_SLOPE * (EE_Q0 - q);
+const EE_S = (q, s) => EE_P0 + EE_SLOPE * (q - EE_Q0 - s);
+
+function drawEntryExit() {
+  const s = parseFloat(document.getElementById("knob-ee").value);
+  const Q = EE_Q0 + s / 2, P = EE_P0 - EE_SLOPE * s / 2;
+  const moved = s !== 0;
+  const qStar = PF_QSTAR(P), qMin = 12, pMin = PF_ATC(qMin);
+  const gain = P > pMin + 1e-9, even = Math.abs(P - pMin) < 1e-9;
+  const col = gain ? PF_COLORS.gain : PF_COLORS.loss;
+  const gray = "#6b7280";
+  const line = (xs, ys, color, width, extra) => ({ x: xs, y: ys, mode: "lines",
+    line: { color, width }, hoverinfo: "skip", ...extra });
+  const guide = (xs, ys, extra) => ({ x: xs, y: ys, mode: "lines",
+    line: { color: gray, width: 1.5, dash: "dot" }, hoverinfo: "skip", ...extra });
+  const point = (x, y, extra) => ({ x: [x], y: [y], mode: "markers",
+    marker: { size: 9, color: "#111" }, hoverinfo: "skip", ...extra });
+  const firm = { xaxis: "x2", yaxis: "y2" };
+  const num = (text, x, y, vertical, extra) => vertical
+    ? { text, x: 0, y, xanchor: "right", yanchor: "middle", xshift: -4, showarrow: false,
+        font: { color: "#012169", size: 13 }, ...extra }
+    : { text, x, y: 0, yanchor: "top", yshift: -5, showarrow: false,
+        font: { color: "#012169", size: 13 }, ...extra };
+  const name = (text, x, y, color, extra) => ({ text, x, y, xanchor: "left", yanchor: "middle",
+    xshift: 5, showarrow: false, font: { color, size: 14 }, ...extra });
+
+  const plotEl = document.getElementById("plot-ee");
+  const pxY = (plotEl.clientHeight - EE_MARGIN.t - EE_MARGIN.b) / EE_FIRM.yMax;
+  const pxX = (plotEl.clientWidth - EE_MARGIN.l - EE_MARGIN.r) * (1 - MF_SPLIT - MF_GAP) / EE_FIRM.xMax;
+
+  const traces = [];
+  const annotations = dsAxisArrows("Q", "P", EE_MKT).concat(dsAxisArrows("q", "P", EE_FIRM).map(mfOnFirm));
+
+  // market: D fixed, S shifted (its segment centered on the crossing, so it
+  // slides along its own line); D extended when the crossing nears its end
+  const spanD = seqSpan(EE_Q0, moved ? [Q] : []);
+  const spanS = [Q - EE_HALF, Q + EE_HALF];
+  if (moved) {
+    const span0 = [EE_Q0 - EE_HALF, EE_Q0 + EE_HALF];
+    traces.push(line(span0, span0.map(q => EE_S(q, 0)), MF_GHOST, 2));
+    traces.push(line([0, EE_LINE_END], [EE_P0, EE_P0], MF_GHOST, 2, firm));
+    // arrow from the original S to the shifted S, drawn 3 below the original
+    // price so that its tip stays inside the frame at the largest shift
+    const yA = EE_P0 - 3, qA = EE_Q0 - 3 / EE_SLOPE;
+    annotations.push({ xref: "x", yref: "y", axref: "x", ayref: "y", x: qA + s, y: yA,
+      ax: qA, ay: yA, showarrow: true, arrowhead: 2, arrowsize: 1.3, arrowwidth: 2.5,
+      arrowcolor: "#b91c1c", text: "" });
+  }
+  traces.push(line(spanD, spanD.map(EE_D), "#111", 3, { cliponaxis: true }));
+  traces.push(line(spanS, spanS.map(q => EE_S(q, s)), "#111", 3, { cliponaxis: true }));
+  const xEndD = Math.min(spanD[1], EE_MKT.xMax - 3), xEndS = Math.min(spanS[1], EE_MKT.xMax - 3);
+  annotations.push(name("D", xEndD, EE_D(xEndD), "#111"), name("S", xEndS, EE_S(xEndS, s), "#111"));
+  traces.push(guide([Q, Q], [0, P]), point(Q, P));
+  annotations.push(num(pfNum(P), 0, P, true), num("Q", Q, 0, false));
+
+  // firm: MC, ATC, the price line, the two points, and the piece of MC between them
+  // ATC ends at 16.5 so that its name, at the right end, stays left of the
+  // "D = MR = P" label whatever the price
+  const mc = pfSample(PF_MC, 5, 15), atc = pfSample(PF_ATC, 5.5, 16.5);
+  traces.push(line(mc.xs, mc.ys, PF_COLORS.mc, 3, firm), line(atc.xs, atc.ys, PF_COLORS.atc, 3, firm));
+  // the name sits under the right end of ATC (the curve rises away from
+  // it), or above it when the price line runs through that spot
+  const yAtc = PF_ATC(16.5), lineBelow = P < yAtc - 0.1 && P > yAtc - 1.3;
+  annotations.push(name("MC", 15, PF_MC(15), PF_COLORS.mc, mfOnFirm({})),
+                   name("ATC", 16.5, yAtc, PF_COLORS.atc, mfOnFirm({
+                     yanchor: lineBelow ? "bottom" : "top", yshift: lineBelow ? 4 : -4 })));
+  traces.push(line([0, EE_LINE_END], [P, P], "#111", 3, firm));
+  annotations.push(name("D = MR = P", EE_LINE_END, P, "#111", mfOnFirm({})));
+  if (!even) {
+    const arc = pfSample(PF_MC, Math.min(qStar, qMin), Math.max(qStar, qMin), 0.02);
+    traces.push(line(arc.xs, arc.ys, col, 7, firm));
+  }
+  traces.push(guide([qMin, qMin, null, 0, qMin], [0, pMin, null, pMin, pMin], firm));
+  traces.push(guide([qStar, qStar], [0, P], firm));
+  traces.push(point(qMin, pMin, firm), point(qStar, P, firm));
+  // axis numbers on the firm panel, pushed apart when two would print together
+  const ys = [{ y: P, text: pfNum(P) }, { y: pMin, text: pfNum(pMin) }];
+  const yShift = pfSpread(ys, pxY, 14);
+  ys.forEach((it, i) => annotations.push(mfOnFirm(num(it.text, 0, it.y, true, { yshift: yShift[i] }))));
+  const xs = [{ y: qStar, text: pfNum(qStar) }, { y: qMin, text: pfNum(qMin) }];
+  const xShift = pfSpread(xs, pxX, 34);
+  xs.forEach((it, i) => annotations.push(mfOnFirm(num(it.text, it.y, 0, false, { xshift: xShift[i] }))));
+
+  annotations.push(
+    { text: "Market", xref: "paper", yref: "paper", x: MF_SPLIT / 2, y: 1, xanchor: "center",
+      yanchor: "bottom", yshift: 8, showarrow: false, font: { color: "#012169", size: 15 } },
+    { text: "One firm", xref: "paper", yref: "paper", x: (MF_SPLIT + MF_GAP + 1) / 2, y: 1, xanchor: "center",
+      yanchor: "bottom", yshift: 8, showarrow: false, font: { color: "#012169", size: 15 } });
+  const shapes = [{ type: "line", xref: "paper", yref: "y", x0: 0, x1: MF_SPLIT + MF_GAP, y0: P, y1: P,
+                    line: { color: gray, width: 1.5, dash: "dot" }, layer: "below" }];
+
+  const axM = dsAxes(EE_MKT), axF = dsAxes(EE_FIRM);
+  const layout = {
+    margin: EE_MARGIN, showlegend: false, annotations, shapes,
+    xaxis: { ...axM.xaxis, domain: [0, MF_SPLIT] },
+    yaxis: { ...axM.yaxis },
+    xaxis2: { ...axF.xaxis, domain: [MF_SPLIT + MF_GAP, 1], anchor: "y2" },
+    yaxis2: { ...axF.yaxis, anchor: "x2" }
+  };
+  Plotly.react("plot-ee", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerEntryExitTool() {
+  document.getElementById("knob-ee").addEventListener("input", drawEntryExit);
+  TOOLS["entry-exit"] = { redraw: drawEntryExit, reset: () => resetKnob("knob-ee") };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1731,6 +1872,7 @@ window.addEventListener("DOMContentLoaded", () => {
   registerNaturalMonopolyTool();
   registerMarketFirmTool();
   registerProfitTool();
+  registerEntryExitTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
