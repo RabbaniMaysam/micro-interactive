@@ -271,6 +271,14 @@
      The plot margins are 30px each side; the market subplot covers the
      left MF_SPLIT (0.46) of the plot area. */
   .knob-row.market { box-sizing: border-box; padding: 0.15em 0 0 30px; width: calc(30px + 0.46 * (100% - 60px)); }
+  /* Profit and shutdown tool: the price knob covers P = 2.5 to 14 of a 0 to
+     18 scale on a 360px plot with margins t 20, b 30 (plot area 310px), so
+     the thumb sits level with the MR line: top at 20 + 310 (1 - 14/18) = 89px,
+     height 310 (11.5/18) = 198px */
+  .vslider.pf { padding-top: 89px; }
+  .vslider.pf input[type=range].vertical { height: 198px; }
+  .remarks { padding: 0.5em 30px 0 24px; min-height: 3.2em; font-size: 1em; line-height: 1.6; color: var(--text); }
+  .remarks div:empty { display: none; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     aside.sidebar { position: static; max-height: none; }
@@ -315,6 +323,7 @@
   <div class="chapter">Chapter 10: Pure competition</div>
   <ul>
     <li><a href="#market-firm">Market price and the firm's demand</a></li>
+    <li><a href="#profit-shutdown">Profit and the shutdown decision</a></li>
   </ul>
 </aside>
 
@@ -510,6 +519,27 @@
     <div class="knob-row market">
       <span class="knob-name">Shift S</span>
       <div class="knob-track"><input type="range" id="knob-mf-s" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="profit-shutdown">
+  <h2 class="group-heading">Chapter 10: Pure competition</h2>
+  <section class="tool-card">
+    <h2>Profit and the shutdown decision</h2>
+    <div class="panel-body vertical">
+      <div class="vslider pf">
+        <input type="range" class="vertical" id="knob-pf" min="2.5" max="14" step="0.1" value="12" autocomplete="off">
+      </div>
+      <div id="plot-pf" class="plot eq-plot"></div>
+    </div>
+    <div class="button-row">
+      <button class="step-btn" id="btn-pf-minus" title="Remove the last step">&minus;</button>
+      <button class="step-btn" id="btn-pf-plus" title="Add the next step">+</button>
+    </div>
+    <div class="remarks">
+      <div id="pf-remark-profit"></div>
+      <div id="pf-remark-shutdown"></div>
     </div>
   </section>
 </div>
@@ -1507,6 +1537,167 @@ function registerMarketFirmTool() {
   };
 }
 
+// ----------------------------------------------------------------------
+// Tool 12 (chapter 10, slide 31): profit and the shutdown decision. One
+// figure with MC, ATC, and AVC and a single horizontal MR line at the
+// price set by a vertical knob (2.5 to 14, default 12, aligned with the
+// price scale). Costs: AVC = a - b q + c q^2 with its minimum 4 at q = 10,
+// FC chosen so that ATC has its minimum 8 at q = 12 (MC crosses both
+// minima, so the knob at 4.0 and 8.0 reads P = AVC and P = ATC exactly).
+// MC is dashed below the shutdown point, as on the slide.
+// "-" and "+" walk through the analysis in five steps (nothing at 0):
+//   1 Q* (MC = P) on the axis
+//   2 P and ATC at Q* on the axis, remark on the sign of profit
+//   3 AVC at Q* on the axis, remark on producing or shutting down
+//   4 average profit as a thick vertical segment from ATC to P at Q*
+//   5 total profit as the shaded rectangle, green for profit, red for loss
+// Remarks compare values rounded to one decimal, the same rounding as the
+// numbers printed, so a remark never contradicts the figure.
+// ----------------------------------------------------------------------
+const PF_C = 1 / 13, PF_B = 20 / 13, PF_A = 4 + 100 / 13, PF_FC = 576 / 13;
+const PF_AVC = q => PF_A - PF_B * q + PF_C * q * q;
+const PF_ATC = q => PF_AVC(q) + PF_FC / q;
+const PF_MC = q => PF_A - 2 * PF_B * q + 3 * PF_C * q * q;
+const PF_QSTAR = P => (2 * PF_B + Math.sqrt(4 * PF_B * PF_B - 12 * PF_C * (PF_A - P))) / (6 * PF_C);
+const PF_SHUT_Q = 10;                       // AVC minimum, where the dashed MC ends
+const PF_FRAME = { xMax: 22, yMax: 18, xPad: 0.6, yPad: 0.4 };
+const PF_MARGIN = { l: 76, r: 30, t: 20, b: 30 };   // l fits "ATC = 12.6" left of the axis
+const PF_MR_END = 19.5, PF_STEPS = 5;
+const PF_STATE = { n: 0 };
+const PF_COLORS = { mc: "#0d9488", atc: "#b91c1c", avc: "#b45309", gain: "#15803d", loss: "#b91c1c",
+                    gainFill: "rgba(22, 163, 74, 0.25)", lossFill: "rgba(220, 38, 38, 0.25)" };
+
+const pfNum = v => {
+  const r = Math.round(v * 10) / 10;
+  return (r < 0 ? "−" : "") + Math.abs(r).toFixed(1);   // r = -0 prints "0.0"
+};
+function pfSample(f, x0, x1, step = 0.1) {
+  const xs = [], ys = [];
+  for (let q = x0; q <= x1 + 1e-9; q += step) { xs.push(q); ys.push(f(q)); }
+  return { xs, ys };
+}
+// yshift (px) for labels stacked on the vertical axis so that none prints
+// closer than `gap` px to its neighbor: neighbors that collide are pushed
+// apart symmetrically
+function pfSpread(items, pxPerUnit, gap) {
+  const order = items.map((it, i) => ({ i, px: it.y * pxPerUnit })).sort((u, v) => u.px - v.px);
+  for (let pass = 0; pass < 2; pass++) {
+    for (let k = 1; k < order.length; k++) {
+      const diff = order[k].px - order[k - 1].px;
+      if (diff < gap) { const d = (gap - diff) / 2; order[k - 1].px -= d; order[k].px += d; }
+    }
+  }
+  const shift = new Array(items.length).fill(0);
+  order.forEach(o => { shift[o.i] = o.px - items[o.i].y * pxPerUnit; });
+  return shift;
+}
+
+function drawProfit() {
+  const P = parseFloat(document.getElementById("knob-pf").value);
+  const n = PF_STATE.n;
+  const Q = PF_QSTAR(P), atc = PF_ATC(Q), avc = PF_AVC(Q);
+  const r1 = v => Math.round(v * 10) / 10;
+  const P1 = r1(P), atc1 = r1(atc), avc1 = r1(avc);
+  const gain = P1 >= atc1;                   // color of the profit line and region
+  const col = gain ? PF_COLORS.gain : PF_COLORS.loss;
+  const avgProfit = P - atc, totalProfit = (P - atc) * Q;
+
+  const plotEl = document.getElementById("plot-pf");
+  const pxPerUnit = (plotEl.clientHeight - PF_MARGIN.t - PF_MARGIN.b) / PF_FRAME.yMax;
+  const thin = Math.abs(P - atc) * pxPerUnit < 22;   // profit band too thin for a label inside
+  const traces = [], annotations = dsAxisArrows("q", "$", PF_FRAME);
+  const line = (xs, ys, color, width, dash) => ({ x: xs, y: ys, mode: "lines",
+    line: { color, width, dash: dash || "solid" }, hoverinfo: "skip" });
+  const guide = (xs, ys) => line(xs, ys, "#6b7280", 1.5, "dot");
+  const point = (x, y, color) => ({ x: [x], y: [y], mode: "markers",
+    marker: { size: 8, color: color || "#111" }, hoverinfo: "skip" });
+  const name = (text, x, y, color) => ({ text, x, y, xanchor: "left", yanchor: "middle", xshift: 5,
+    showarrow: false, font: { color, size: 14 } });
+
+  // step 5: the total profit (or loss) rectangle, under everything else
+  if (n >= 5) {
+    traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
+                  fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill,
+                  line: { width: 0 }, hoverinfo: "skip" });
+    // the label sits in the left part of the rectangle (q under 6, where no
+    // curve is drawn), above the line when the rectangle is too thin
+    annotations.push({ text: "Total profit = " + pfNum(totalProfit), x: 1.6,
+      y: thin ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
+      yanchor: thin ? "bottom" : "middle", yshift: thin ? 4 : 0,
+      showarrow: false, font: { color: col, size: 14 } });
+  }
+
+  // the cost curves and their names
+  const mcDash = pfSample(PF_MC, 3, PF_SHUT_Q), mcSolid = pfSample(PF_MC, PF_SHUT_Q, 15);
+  const atcS = pfSample(PF_ATC, 5.5, 18), avcS = pfSample(PF_AVC, 5.5, 18);
+  traces.push(line(mcDash.xs, mcDash.ys, PF_COLORS.mc, 3, "dash"),
+              line(mcSolid.xs, mcSolid.ys, PF_COLORS.mc, 3),
+              line(atcS.xs, atcS.ys, PF_COLORS.atc, 3),
+              line(avcS.xs, avcS.ys, PF_COLORS.avc, 3));
+  annotations.push(name("MC", 15, PF_MC(15), PF_COLORS.mc),
+                   name("ATC", 18, PF_ATC(18), PF_COLORS.atc),
+                   name("AVC", 18, PF_AVC(18), PF_COLORS.avc));
+  // the MR line at the price
+  traces.push(line([0, PF_MR_END], [P, P], "#111", 3));
+  annotations.push(name("MR", PF_MR_END, P, "#111"));
+
+  const axisItems = [];   // labels on the vertical axis, spread apart if needed
+  if (n >= 1) {
+    traces.push(guide([Q, Q], [0, P]), point(Q, P));
+    annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
+                       showarrow: false, font: { color: "#012169", size: 13 } });
+  }
+  if (n >= 2) {
+    traces.push(guide([0, Q], [atc, atc]), point(Q, atc));
+    axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
+  }
+  if (n >= 3) {
+    traces.push(guide([0, Q], [avc, avc]), point(Q, avc));
+    axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
+  }
+  if (n >= 4) {
+    traces.push(line([Q, Q], [atc, P], col, 5));
+    // right of the segment at its middle (below the line when the segment is
+    // too short); a white backing masks the curve that passes there (MC in a
+    // loss, ATC in a profit)
+    annotations.push({ text: "Average profit = " + pfNum(avgProfit), x: Q,
+      y: thin ? Math.min(P, atc) : (P + atc) / 2, xanchor: "left",
+      yanchor: thin ? "top" : "middle", xshift: 8, yshift: thin ? -6 : 0,
+      bgcolor: "rgba(255, 255, 255, 0.85)", borderpad: 2,
+      showarrow: false, font: { color: col, size: 14 } });
+  }
+  const shifts = pfSpread(axisItems, pxPerUnit, 14);
+  axisItems.forEach((it, i) => annotations.push({ text: it.text, x: 0, y: it.y, xanchor: "right",
+    yanchor: "middle", xshift: -4, yshift: shifts[i], showarrow: false,
+    font: { color: "#012169", size: 13 } }));
+
+  // remarks under the figure (the user's wording)
+  const profitText = n < 2 ? "" : P1 > atc1 ? "Profit is positive because P > ATC"
+    : P1 < atc1 ? "Profit is negative because P < ATC" : "Profit is zero because P = ATC";
+  const shutText = n < 3 ? "" : P1 >= avc1 ? "Should keep producing because P ≥ AVC"
+    : "Should shut down because P < AVC";
+  document.getElementById("pf-remark-profit").textContent = profitText;
+  document.getElementById("pf-remark-shutdown").textContent = shutText;
+
+  const layout = { margin: PF_MARGIN, ...dsAxes(PF_FRAME), showlegend: false, annotations };
+  Plotly.react("plot-pf", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerProfitTool() {
+  const minus = document.getElementById("btn-pf-minus"), plus = document.getElementById("btn-pf-plus");
+  const update = () => {
+    minus.disabled = PF_STATE.n <= 0; plus.disabled = PF_STATE.n >= PF_STEPS;
+    drawProfit();
+  };
+  minus.addEventListener("click", () => { if (PF_STATE.n > 0) { PF_STATE.n--; update(); } });
+  plus.addEventListener("click", () => { if (PF_STATE.n < PF_STEPS) { PF_STATE.n++; update(); } });
+  document.getElementById("knob-pf").addEventListener("input", drawProfit);
+  TOOLS["profit-shutdown"] = {
+    redraw: update,
+    reset: () => { PF_STATE.n = 0; resetKnob("knob-pf"); }
+  };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1539,6 +1730,7 @@ window.addEventListener("DOMContentLoaded", () => {
   registerLongRunTool();
   registerNaturalMonopolyTool();
   registerMarketFirmTool();
+  registerProfitTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
