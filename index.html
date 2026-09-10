@@ -557,8 +557,8 @@
       <div class="knob-track"><input type="range" id="knob-ee" min="0" max="100" step="1" value="0" autocomplete="off"></div>
     </div>
     <div class="button-row">
-      <label class="toggle"><input type="radio" name="ee-start" id="ee-start-profit" value="0" checked autocomplete="off"> Start with a profit</label>
-      <label class="toggle"><input type="radio" name="ee-start" id="ee-start-loss" value="100" autocomplete="off"> Start with a loss</label>
+      <label class="toggle"><input type="radio" name="ee-start" id="ee-start-profit" value="0" checked autocomplete="off"> Starting point 1</label>
+      <label class="toggle"><input type="radio" name="ee-start" id="ee-start-loss" value="100" autocomplete="off"> Starting point 2</label>
     </div>
   </section>
 </div>
@@ -1725,8 +1725,10 @@ function registerProfitTool() {
 // Q = 64 + s/2, P = 12 - 0.125 s. The knob reads v from 0 to 100 with
 // s = 0.64 v, so P runs from 12 (v = 0) through 8 at the knob's center
 // (v = 50, the long-run equilibrium, marked by the tick) to 4 (v = 100):
-// the same distance either side. Two toggles pick the start, "profit"
-// (v = 0) or "loss" (v = 100); picking one puts the knob there. Firm: the
+// the same distance either side. Two toggles pick the start, "Starting
+// point 1" (v = 0, profit) or "Starting point 2" (v = 100, loss), named
+// neutrally so as not to give the answer away; picking one puts the knob
+// there. Firm: the
 // MC and ATC of the profit tool (ATC minimum 8 at q = 12, on MC), the line
 // D = MR = P at the market price, the point MC = P, and the ATC minimum.
 // The piece of MC between those two points is thick, green when P is
@@ -1740,8 +1742,8 @@ const EE_MKT = { xMax: 110, yMax: 18, xPad: 3, yPad: 0.4 };
 const EE_FIRM = { xMax: 22, yMax: 18, xPad: 0.6, yPad: 0.4 };
 // The S lines run from 14 units left of their crossing up to P = 17 (the
 // slides' long S lines), so the shift arrow at P = 15.5 lies between the
-// two S lines above D. D runs from P = 17 down to 8 units right of the
-// crossing (at least to Q0 + 16). Q0 = 23 puts the loss start's S top at
+// two S lines above D. D is fixed, from P = 17 down to 8 units right of
+// the farthest crossing (Q = 63). Q0 = 23 puts the second start's S top at
 // Q = 107, the arrow's end.
 const EE_Q0 = 23, EE_P0 = 12, EE_SLOPE = 0.25, EE_PAD = 8, EE_TOP = 17, EE_S_BELOW = 14, EE_ARROW_Y = 15.5;
 const EE_S_PER_V = 0.64;                    // s = 0.64 v: P falls 8 over the knob
@@ -1786,7 +1788,8 @@ function drawEntryExit() {
   // slides along its own line); D extended when the crossing nears its end
   const qTop = (EE_TOP - EE_P0) / EE_SLOPE;   // horizontal distance from a crossing at P0 to P = TOP
   const spanS = [Q - EE_S_BELOW, EE_Q0 + s + qTop];
-  const spanD = [EE_Q0 - qTop, Math.max(Q + EE_PAD, EE_Q0 + 16)];
+  // D is fixed: from P = TOP down to 8 right of the farthest crossing (v = 100)
+  const spanD = [EE_Q0 - qTop, EE_AT(100).Q + EE_PAD];
   if (moved) {
     const span0 = [start.Q - EE_S_BELOW, EE_Q0 + start.s + qTop];
     traces.push(line(span0, span0.map(q => EE_S(q, start.s)), MF_GHOST, 2, { cliponaxis: true }));
