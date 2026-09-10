@@ -306,6 +306,7 @@
   <div class="chapter">Chapter 9: Costs of production</div>
   <ul>
     <li><a href="#long-run-atc">Short-run ATCs and the long-run ATC</a></li>
+    <li><a href="#natural-monopoly">Natural monopoly</a></li>
   </ul>
 </aside>
 
@@ -473,6 +474,18 @@
       <span class="spacer"></span>
       <label class="toggle"><input type="checkbox" id="toggle-lr-dissect" autocomplete="off"> Dissect</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-lrac" autocomplete="off"> Long-run ATC</label>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="natural-monopoly">
+  <h2 class="group-heading">Chapter 9: Costs of production</h2>
+  <section class="tool-card">
+    <h2>Natural monopoly</h2>
+    <div id="plot-nm" class="plot eq-plot"></div>
+    <div class="button-row">
+      <label class="toggle"><input type="checkbox" id="toggle-nm-a" checked autocomplete="off"> Company A</label>
+      <label class="toggle"><input type="checkbox" id="toggle-nm-b" checked autocomplete="off"> Company B</label>
     </div>
   </section>
 </div>
@@ -803,18 +816,21 @@ function dsAxes(frame = {}) {
              showticklabels: false, showgrid: false, ticks: "" }
   };
 }
+// frame.xPad and yPad: how far (in data units) the arrow tips stop short of
+// the frame edge; the defaults suit the 115 by 100 frame
 function dsAxisArrows(xLabel, yLabel, frame = {}) {
   const xMax = frame.xMax || DS_X_MAX, yMax = frame.yMax || DS_Y_MAX;
+  const xEnd = xMax - (frame.xPad ?? 3), yEnd = yMax - (frame.yPad ?? 2);
   const arrow = { xref: "x", yref: "y", axref: "x", ayref: "y", ax: 0, ay: 0,
                   showarrow: true, arrowhead: 2, arrowsize: 1.2, arrowwidth: 1.5,
                   arrowcolor: "#111", text: "" };
   const out = [
-    { ...arrow, x: xMax - 3, y: 0 },
-    { ...arrow, x: 0, y: yMax - 2 }
+    { ...arrow, x: xEnd, y: 0 },
+    { ...arrow, x: 0, y: yEnd }
   ];
-  if (xLabel) out.push({ text: xLabel, x: xMax - 3, y: 0, xanchor: "left", xshift: 6,
+  if (xLabel) out.push({ text: xLabel, x: xEnd, y: 0, xanchor: "left", xshift: 6,
                          showarrow: false, font: { color: "#111", size: 15 } });
-  if (yLabel) out.push({ text: yLabel, x: 0, y: yMax - 2, yanchor: "bottom", yshift: 4,
+  if (yLabel) out.push({ text: yLabel, x: 0, y: yEnd, yanchor: "bottom", yshift: 4,
                          showarrow: false, font: { color: "#111", size: 15 } });
   return out;
 }
@@ -1185,8 +1201,15 @@ function registerElasticityTool() {
 // (ATC_1 first, at the left) and remove the last one. "Dissect" colors
 // each curve blue where it is the lowest of the curves shown and red
 // elsewhere (slide 46); "Long-run ATC" draws the thick envelope (slide 47).
+// While the envelope is hidden, each crossing of consecutive curves (the
+// output at which the two plants cost the same) is marked, with its Q on
+// the quantity axis and its cost on the vertical axis. Equal curvatures put
+// the crossing midway between the two tangency points, so Q = 11, 17, ...,
+// 95. Costs on the axis are rounded to integers; identical ones (the
+// symmetric pairs) print once, and labels closer than 13px are spread apart.
 // ----------------------------------------------------------------------
 const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
+const LR_MARGIN = { l: 30, r: 30, t: 20, b: 26 };
 const LR_FRAME = { xMax: 110, yMax: 56 };
 const LR = q => 10 + 0.012 * (q - 50) ** 2;
 const LRd = q => 0.024 * (q - 50);
@@ -1240,8 +1263,34 @@ function drawLongRun() {
       xanchor: "center", yanchor: "top", yshift: -8, showarrow: false,
       font: { color: "#111", size: 12 } });
   });
-  const layout = { margin: { l: 30, r: 30, t: 20, b: 26 }, ...dsAxes(LR_FRAME),
-                   showlegend: false, annotations };
+  if (!lrac && curves.length > 1) {
+    const gx = [], gy = [], px = [], py = [], costs = [];
+    for (let i = 0; i + 1 < curves.length; i++) {
+      const Qx = (LR_TANGENT(i) + LR_TANGENT(i + 1)) / 2, Cx = curves[i].f(Qx);
+      gx.push(0, Qx, Qx, null); gy.push(Cx, Cx, 0, null);
+      px.push(Qx); py.push(Cx);
+      annotations.push({ text: String(Qx), x: Qx, y: 0, yanchor: "top", yshift: -5,
+        showarrow: false, font: { color: "#012169", size: 12 } });
+      const shown = Math.round(Cx);
+      if (!costs.some(c => Math.abs(c.y - Cx) < 1e-6)) costs.push({ y: Cx, text: String(shown) });
+    }
+    traces.push({ x: gx, y: gy, mode: "lines", line: { color: "#6b7280", width: 1.2, dash: "dot" },
+                  connectgaps: false, hoverinfo: "skip" });
+    traces.push({ x: px, y: py, mode: "markers", marker: { size: 6, color: "#111" }, hoverinfo: "skip" });
+    // spread the cost labels: sorted upward, each at least 13px above the previous
+    const div = document.getElementById("plot-lr");
+    const pxPerUnit = Math.max(1, div.clientHeight - LR_MARGIN.t - LR_MARGIN.b) / LR_FRAME.yMax;
+    costs.sort((a, b) => a.y - b.y);
+    let last = -Infinity;
+    costs.forEach(c => {
+      const at = Math.max(c.y * pxPerUnit, last + 13);
+      last = at;
+      annotations.push({ text: c.text, x: 0, y: c.y, xanchor: "right", yanchor: "middle",
+        xshift: -4, yshift: at - c.y * pxPerUnit, showarrow: false,
+        font: { color: "#012169", size: 12 } });
+    });
+  }
+  const layout = { margin: LR_MARGIN, ...dsAxes(LR_FRAME), showlegend: false, annotations };
   Plotly.react("plot-lr", traces, layout, { responsive: true, displayModeBar: false });
 }
 
@@ -1263,6 +1312,70 @@ function registerLongRunTool() {
       document.getElementById("toggle-lr-dissect").checked = false;
       document.getElementById("toggle-lr-lrac").checked = false;
     }
+  };
+}
+
+// ----------------------------------------------------------------------
+// Tool 10 (chapter 9): natural monopoly. One ATC falling throughout,
+// NM_ATC(Q) = 1 + 8 exp(-(Q - 1)/4): 9 at Q = 1, about 1 at Q = 20. Three
+// firms sit on it: A at Q = 4, B at Q = 5, and PSE&G at Q = 10. Each point
+// has its Q on the quantity axis and its cost on the vertical axis (one
+// decimal). Unchecking Company A or B removes that firm and adds its
+// output to PSE&G, which slides down the curve (to 14, 15, or 19).
+// ----------------------------------------------------------------------
+const NM_FRAME = { xMax: 22, yMax: 10.5, xPad: 0.6, yPad: 0.25 };
+const NM_ATC = Q => 1 + 8 * Math.exp(-(Q - 1) / 4);
+const NM_FIRMS = [{ name: "A", q: 4, toggle: "toggle-nm-a" }, { name: "B", q: 5, toggle: "toggle-nm-b" }];
+const NM_BIG = { name: "PSE&amp;G", q: 10 };
+
+function drawNaturalMonopoly() {
+  const pts = [];
+  let qBig = NM_BIG.q;
+  NM_FIRMS.forEach(f => {
+    if (document.getElementById(f.toggle).checked) pts.push({ name: f.name, q: f.q });
+    else qBig += f.q;
+  });
+  pts.push({ name: NM_BIG.name, q: qBig });
+  const xs = [], ys = [];
+  for (let Q = 1; Q <= 20 + 1e-9; Q += 0.1) { xs.push(Q); ys.push(NM_ATC(Q)); }
+  const gx = [], gy = [];
+  pts.forEach(p => { const c = NM_ATC(p.q); gx.push(0, p.q, p.q, null); gy.push(c, c, 0, null); });
+  const traces = [
+    { x: xs, y: ys, mode: "lines", line: { color: "#111", width: 3 }, hoverinfo: "skip" },
+    { x: gx, y: gy, mode: "lines", line: { color: "#6b7280", width: 1.5, dash: "dot" },
+      connectgaps: false, hoverinfo: "skip" },
+    { x: pts.map(p => p.q), y: pts.map(p => NM_ATC(p.q)), mode: "markers",
+      marker: { size: 9, color: "#111" }, hoverinfo: "skip" }
+  ];
+  const annotations = dsAxisArrows("Q", null, NM_FRAME).concat([
+    { text: "Price<br>Cost per unit", x: 0, y: NM_FRAME.yMax - NM_FRAME.yPad, xanchor: "left",
+      yanchor: "bottom", xshift: -8, yshift: 4, align: "left", showarrow: false,
+      font: { color: "#111", size: 15 } },
+    // at the curve's upper-left start: its right end is where PSE&G sits
+    // once both companies are gone
+    { text: "ATC", x: 1, y: NM_ATC(1), xanchor: "left", yanchor: "middle", xshift: 9,
+      showarrow: false, font: { color: "#111", size: 15 } }
+  ]);
+  pts.forEach(p => {
+    const c = NM_ATC(p.q);
+    annotations.push(
+      { text: p.name, x: p.q, y: c, xanchor: "left", yanchor: "bottom", xshift: 6, yshift: 5,
+        showarrow: false, font: { color: "#111", size: 15 } },
+      { text: String(p.q), x: p.q, y: 0, yanchor: "top", yshift: -5,
+        showarrow: false, font: { color: "#012169", size: 13 } },
+      { text: c.toFixed(1), x: 0, y: c, xanchor: "right", yanchor: "middle", xshift: -4,
+        showarrow: false, font: { color: "#012169", size: 13 } });
+  });
+  const layout = { margin: { l: 34, r: 30, t: 44, b: 26 }, ...dsAxes(NM_FRAME),
+                   showlegend: false, annotations };
+  Plotly.react("plot-nm", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerNaturalMonopolyTool() {
+  NM_FIRMS.forEach(f => document.getElementById(f.toggle).addEventListener("change", drawNaturalMonopoly));
+  TOOLS["natural-monopoly"] = {
+    redraw: drawNaturalMonopoly,
+    reset: () => NM_FIRMS.forEach(f => { document.getElementById(f.toggle).checked = true; })
   };
 }
 
@@ -1296,6 +1409,7 @@ window.addEventListener("DOMContentLoaded", () => {
   };
   registerElasticityTool();
   registerLongRunTool();
+  registerNaturalMonopolyTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
