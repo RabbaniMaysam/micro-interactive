@@ -267,6 +267,10 @@
     background: var(--primary); transform: translateX(-50%); pointer-events: none; z-index: 0;
   }
   .hslider input[type=range] { width: 100%; accent-color: var(--primary); margin: 0; display: block; }
+  /* Market and firm tool: knobs sit under the left (market) subplot only.
+     The plot margins are 30px each side; the market subplot covers the
+     left MF_SPLIT (0.46) of the plot area. */
+  .knob-row.market { box-sizing: border-box; padding: 0.15em 0 0 30px; width: calc(30px + 0.46 * (100% - 60px)); }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
     aside.sidebar { position: static; max-height: none; }
@@ -307,6 +311,10 @@
   <ul>
     <li><a href="#long-run-atc">Short-run ATCs and the long-run ATC</a></li>
     <li><a href="#natural-monopoly">Natural monopoly</a></li>
+  </ul>
+  <div class="chapter">Chapter 10: Pure competition</div>
+  <ul>
+    <li><a href="#market-firm">Market price and the firm's demand</a></li>
   </ul>
 </aside>
 
@@ -486,6 +494,22 @@
     <div class="button-row">
       <label class="toggle"><input type="checkbox" id="toggle-nm-a" checked autocomplete="off"> Company A</label>
       <label class="toggle"><input type="checkbox" id="toggle-nm-b" checked autocomplete="off"> Company B</label>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="market-firm">
+  <h2 class="group-heading">Chapter 10: Pure competition</h2>
+  <section class="tool-card">
+    <h2>Market price and the firm's demand</h2>
+    <div id="plot-mf" class="plot eq-plot"></div>
+    <div class="knob-row market">
+      <span class="knob-name">Shift D</span>
+      <div class="knob-track"><input type="range" id="knob-mf-d" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
+    </div>
+    <div class="knob-row market">
+      <span class="knob-name">Shift S</span>
+      <div class="knob-track"><input type="range" id="knob-mf-s" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
     </div>
   </section>
 </div>
@@ -1379,6 +1403,110 @@ function registerNaturalMonopolyTool() {
   };
 }
 
+// ----------------------------------------------------------------------
+// Tool 11 (chapter 10, slide 8): the market sets the price, the firm
+// takes it. One Plotly figure with two subplots on the same P scale: the
+// market (D and S) at the left, the firm at the right, where the demand
+// it faces is the horizontal line D = P = MR = AR at the market price.
+// A dotted line runs from the market's P axis through the equilibrium
+// across the gap to the firm's P axis (a paper-referenced shape, so it
+// bridges the two subplots). Two knobs under the market panel shift D and
+// S (the SEQ geometry: e at (64, 62), segments of half-length 29 centered
+// on the shifted curve's own position and extended to keep the crossing
+// on both); the firm's line follows in real time. Once a knob leaves the
+// center, the original curves and the original firm line stay as thin
+// gray ghosts. No numbers anywhere.
+// ----------------------------------------------------------------------
+const MF_SPLIT = 0.46, MF_GAP = 0.10;   // subplot domains: [0, 0.46] and [0.56, 1]
+const MF_MARGIN = { l: 30, r: 30, t: 34, b: 26 };
+const MF_FIRM_Q = 60, MF_LINE_END = SEQ_FRAME.xMax - 8;
+const MF_GHOST = "#b8bcc4";
+
+// move an annotation (or arrow) built for the first subplot to the second
+function mfOnFirm(a) {
+  const out = { ...a, xref: "x2", yref: "y2" };
+  if (a.axref) { out.axref = "x2"; out.ayref = "y2"; }
+  return out;
+}
+
+function drawMarketFirm() {
+  const sd = parseFloat(document.getElementById("knob-mf-d").value);
+  const ss = parseFloat(document.getElementById("knob-mf-s").value);
+  const d = SEQ_CURVES.demand, s = SEQ_CURVES.supply;
+  const Q1 = SEQ_E1.Q, P1 = SEQ_E1.P;
+  const Q = Q1 + (sd + ss) / 2, P = P1 + (sd - ss) / 2;
+  const moved = sd !== 0 || ss !== 0;
+  const gray = "#6b7280";
+
+  const traces = [];
+  const annotations = dsAxisArrows("Q", "P", SEQ_FRAME)
+    .concat(dsAxisArrows("q", "P", SEQ_FRAME).map(mfOnFirm));
+
+  // ghosts of the originals (market curves, firm line) once something moved
+  if (moved) {
+    const ghost = t => ({ ...t, line: { color: MF_GHOST, width: 2 } });
+    const span0 = seqSpan(Q1, []);
+    traces.push(ghost(seqLine(d, 0, span0, MF_GHOST)), ghost(seqLine(s, 0, span0, MF_GHOST)));
+    traces.push({ x: [0, MF_LINE_END], y: [P1, P1], mode: "lines", xaxis: "x2", yaxis: "y2",
+                  line: { color: MF_GHOST, width: 2 }, hoverinfo: "skip" });
+  }
+
+  // market: shifted D and S, each centered on its own shifted position
+  const spanD = seqSpan(Q1 + sd, [Q]), spanS = seqSpan(Q1 + ss, [Q]);
+  traces.push(seqLine(d, sd, spanD, "#111"), seqLine(s, ss, spanS, "#111"));
+  annotations.push(seqEndLabel(d, sd, spanD, "D", "#111"), seqEndLabel(s, ss, spanS, "S", "#111"));
+  // vertical guide under the equilibrium; the horizontal guide is the shape below
+  traces.push({ x: [Q, Q], y: [0, P], mode: "lines",
+                line: { color: gray, width: 1.5, dash: "dot" }, hoverinfo: "skip" });
+  traces.push({ x: [Q], y: [P], mode: "markers", marker: { size: 9, color: "#111" }, hoverinfo: "skip" });
+
+  // firm: horizontal demand at the market price, a point on it with a guide
+  traces.push({ x: [MF_FIRM_Q, MF_FIRM_Q], y: [0, P], mode: "lines", xaxis: "x2", yaxis: "y2",
+                line: { color: gray, width: 1.5, dash: "dot" }, hoverinfo: "skip" });
+  traces.push({ x: [0, MF_LINE_END], y: [P, P], mode: "lines", xaxis: "x2", yaxis: "y2",
+                line: { color: "#111", width: 3 }, hoverinfo: "skip" });
+  traces.push({ x: [MF_FIRM_Q], y: [P], mode: "markers", xaxis: "x2", yaxis: "y2",
+                marker: { size: 9, color: "#111" }, hoverinfo: "skip" });
+
+  const axisP = { text: "P", x: 0, y: P, xanchor: "right", yanchor: "middle", xshift: -4,
+                  showarrow: false, font: { color: "#111", size: 14 } };
+  const axisQ = (text, x) => ({ text: text, x: x, y: 0, yanchor: "top", yshift: -5,
+                                showarrow: false, font: { color: "#111", size: 14 } });
+  // the line's name sits below its right end, or above it when the line is
+  // low enough for the label to print on the q axis
+  const low = P < 20;
+  annotations.push(axisP, axisQ("Q", Q), mfOnFirm(axisP), mfOnFirm(axisQ("q", MF_FIRM_Q)),
+    mfOnFirm({ text: "D = P = MR = AR", x: MF_LINE_END, y: P, xanchor: "right",
+               yanchor: low ? "bottom" : "top", yshift: low ? 6 : -6,
+               showarrow: false, font: { color: "#111", size: 14 } }),
+    { text: "Market", xref: "paper", yref: "paper", x: MF_SPLIT / 2, y: 1, xanchor: "center",
+      yanchor: "bottom", yshift: 8, showarrow: false, font: { color: "#012169", size: 15 } },
+    { text: "Firm", xref: "paper", yref: "paper", x: (MF_SPLIT + MF_GAP + 1) / 2, y: 1, xanchor: "center",
+      yanchor: "bottom", yshift: 8, showarrow: false, font: { color: "#012169", size: 15 } });
+
+  // the dotted price line across both panels, from the market's P axis to the firm's
+  const shapes = [{ type: "line", xref: "paper", yref: "y", x0: 0, x1: MF_SPLIT + MF_GAP, y0: P, y1: P,
+                    line: { color: gray, width: 1.5, dash: "dot" }, layer: "below" }];
+
+  const ax = dsAxes(SEQ_FRAME);
+  const layout = {
+    margin: MF_MARGIN, showlegend: false, annotations, shapes,
+    xaxis: { ...ax.xaxis, domain: [0, MF_SPLIT] },
+    yaxis: { ...ax.yaxis },
+    xaxis2: { ...ax.xaxis, domain: [MF_SPLIT + MF_GAP, 1], anchor: "y2" },
+    yaxis2: { ...ax.yaxis, anchor: "x2" }
+  };
+  Plotly.react("plot-mf", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerMarketFirmTool() {
+  ["knob-mf-d", "knob-mf-s"].forEach(id => document.getElementById(id).addEventListener("input", drawMarketFirm));
+  TOOLS["market-firm"] = {
+    redraw: drawMarketFirm,
+    reset: () => { resetKnob("knob-mf-d"); resetKnob("knob-mf-s"); }
+  };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1410,6 +1538,7 @@ window.addEventListener("DOMContentLoaded", () => {
   registerElasticityTool();
   registerLongRunTool();
   registerNaturalMonopolyTool();
+  registerMarketFirmTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
