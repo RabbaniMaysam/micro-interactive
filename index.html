@@ -239,6 +239,12 @@
   .eq-plot { height: 360px; flex: 1 1 auto; min-width: 0; }
   .vslider.tall input[type=range].vertical { height: 310px; }
   .hslider { padding: 0 30px 0 20px; }
+  /* Elasticity tool: 340px panels, a vertical position knob at the left and
+     a continuous slope knob under the figure (EL_MARGIN: 24/30/20/30) */
+  .el-plot { height: 340px; flex: 1 1 auto; min-width: 0; }
+  .vslider.el input[type=range].vertical { height: 290px; }
+  .panel-col { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
+  .hslider.el { padding: 0 30px 0 24px; }
   /* Named horizontal knobs under a single figure */
   .knob-row { display: flex; align-items: center; gap: 0.6em; padding: 0.15em 30px 0 24px; }
   .knob-row .knob-name { font-size: 0.85em; font-weight: 600; color: var(--primary); width: 4em; }
@@ -282,6 +288,10 @@
     <li><a href="#supply-move-shift">Supply: movement along vs. shift</a></li>
     <li><a href="#equilibrium">Equilibrium, surplus, and shortage</a></li>
     <li><a href="#shift-equilibrium">Shifts and the new equilibrium</a></li>
+  </ul>
+  <div class="chapter">Chapter 6: Elasticity</div>
+  <ul>
+    <li><a href="#elasticity-slope">Elasticity and slope</a></li>
   </ul>
 </aside>
 
@@ -398,6 +408,42 @@
     <div class="knob-row">
       <span class="knob-name">Shift S</span>
       <div class="knob-track"><input type="range" id="knob-seq-s" min="-56" max="56" step="1" value="0" autocomplete="off"></div>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="elasticity-slope">
+  <h2 class="group-heading">Chapter 6: Elasticity</h2>
+  <section class="tool-card">
+    <div class="two-panel">
+      <div class="panel">
+        <h3>Demand</h3>
+        <div class="panel-body vertical">
+          <div class="vslider el">
+            <input type="range" class="vertical" id="knob-el-dt" min="-1" max="1" step="any" value="0" autocomplete="off">
+          </div>
+          <div class="panel-col">
+            <div id="plot-el-d" class="plot el-plot"></div>
+            <div class="hslider el">
+              <input type="range" id="knob-el-da" min="0" max="90" step="any" value="45" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>Supply</h3>
+        <div class="panel-body vertical">
+          <div class="vslider el">
+            <input type="range" class="vertical" id="knob-el-st" min="-1" max="1" step="any" value="0" autocomplete="off">
+          </div>
+          <div class="panel-col">
+            <div id="plot-el-s" class="plot el-plot"></div>
+            <div class="hslider el">
+              <input type="range" id="knob-el-sa" min="0" max="90" step="any" value="45" autocomplete="off">
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </section>
 </div>
@@ -1018,6 +1064,85 @@ function drawShiftEq() {
   Plotly.react("plot-seq", traces, layout, { responsive: true, displayModeBar: false });
 }
 
+// ----------------------------------------------------------------------
+// Tool 8 (chapter 6): elasticity and slope. Two panels, a demand line on
+// the left and a supply line on the right. Each line is a segment of
+// half-length EL_L that pivots about EL_C. The horizontal knob under the
+// figure is the line's angle from horizontal (0) to vertical (90),
+// continuous. The vertical knob at the left slides the point along the
+// segment (t = -1 at the lower end, 1 at the upper end, 0 at the middle).
+// Beside the point: the point elasticity E = (dQ/dP)(P/Q), with dQ/dP =
+// -cot(angle) for demand and +cot(angle) for supply, three decimals.
+// A horizontal line gives an infinite elasticity, a vertical line zero.
+// P and Q of the point are read on the axes, rounded to integers.
+// ----------------------------------------------------------------------
+const EL_C = { Q: 55, P: 50 }, EL_L = 42;
+const EL_MARGIN = { l: 24, r: 30, t: 20, b: 30 };
+const EL_PANELS = {
+  // dir: the upper end of the line is to the left (-1, demand) or right (1, supply)
+  demand: { letter: "D", sub: "d", dir: -1, plot: "plot-el-d", knobT: "knob-el-dt", knobA: "knob-el-da" },
+  supply: { letter: "S", sub: "s", dir: 1, plot: "plot-el-s", knobT: "knob-el-st", knobA: "knob-el-sa" }
+};
+
+function fmtElasticity(E) {
+  // literal minus and infinity signs: Plotly decodes only a few entities
+  if (!isFinite(E)) return (E < 0 ? "−" : "") + "∞";
+  const r = Math.round(E * 1000) / 1000;
+  if (r === 0) return "0.000";
+  return (r < 0 ? "−" : "") + Math.abs(r).toFixed(3);
+}
+
+function drawElasticity(c) {
+  const t = parseFloat(document.getElementById(c.knobT).value);
+  const a = parseFloat(document.getElementById(c.knobA).value) * Math.PI / 180;
+  const cos = Math.cos(a), sin = Math.sin(a);
+  const at = u => ({ Q: EL_C.Q + c.dir * u * EL_L * cos, P: EL_C.P + u * EL_L * sin });
+  const lo = at(-1), hi = at(1), pt = at(t);
+  const E = c.dir * (cos / sin) * (pt.P / pt.Q);   // sin = 0: +-Infinity
+  const rightEnd = c.dir > 0 ? hi : lo;
+  const traces = [
+    { x: [lo.Q, hi.Q], y: [lo.P, hi.P], mode: "lines",
+      line: { color: "#111", width: 3 }, hoverinfo: "skip" },
+    { x: [pt.Q, pt.Q, null, 0, pt.Q], y: [0, pt.P, null, pt.P, pt.P], mode: "lines",
+      line: { color: "#6b7280", width: 1.5, dash: "dot" }, hoverinfo: "skip" },
+    { x: [pt.Q], y: [pt.P], mode: "markers", marker: { size: 9, color: "#111" }, hoverinfo: "skip" }
+  ];
+  // The elasticity reads on a side of the point that the line leaves
+  // clear: above right or below left of a demand point, below right or
+  // above left of a supply point. The first choice is used unless the
+  // label would leave the frame at the right (Q > 80), print on the D or
+  // S letter at the line's end, or sit on the Q axis (a supply point with
+  // P < 20).
+  const up = c.dir < 0 ? pt.Q <= 80 : !(pt.P >= 20 && pt.P <= 80 && pt.Q <= 80);
+  const right = c.dir < 0 ? up : !up;
+  const annotations = dsAxisArrows("Q", "P").concat([
+    { text: c.letter, x: rightEnd.Q, y: rightEnd.P, xanchor: "left", yanchor: "middle", xshift: 8,
+      showarrow: false, font: { color: "#111", size: 15 } },
+    { text: "E<sub>" + c.sub + "</sub> = " + fmtElasticity(E), x: pt.Q, y: pt.P,
+      xanchor: right ? "left" : "right", yanchor: up ? "bottom" : "top",
+      xshift: right ? 9 : -9, yshift: up ? 7 : -7,
+      showarrow: false, font: { color: "#012169", size: 16 } },
+    { text: "P = " + Math.round(pt.P), x: 0, y: pt.P, xanchor: "center", yanchor: "middle", xshift: -11,
+      textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } },
+    { text: "Q = " + Math.round(pt.Q), x: pt.Q, y: 0, yanchor: "top", yshift: -6,
+      showarrow: false, font: { color: "#012169", size: 13 } }
+  ]);
+  const layout = { margin: EL_MARGIN, ...dsAxes(), showlegend: false, annotations };
+  Plotly.react(c.plot, traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerElasticityTool() {
+  const panels = Object.values(EL_PANELS);
+  panels.forEach(c => {
+    document.getElementById(c.knobT).addEventListener("input", () => drawElasticity(c));
+    document.getElementById(c.knobA).addEventListener("input", () => drawElasticity(c));
+  });
+  TOOLS["elasticity-slope"] = {
+    redraw: () => panels.forEach(drawElasticity),
+    reset: () => panels.forEach(c => { resetKnob(c.knobT); resetKnob(c.knobA); })
+  };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1046,6 +1171,7 @@ window.addEventListener("DOMContentLoaded", () => {
     redraw: drawShiftEq,
     reset: () => { resetKnob("knob-seq-d"); resetKnob("knob-seq-s"); }
   };
+  registerElasticityTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
