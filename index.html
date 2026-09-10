@@ -280,6 +280,12 @@
   .vslider.pf { padding-top: 89px; }
   .vslider.pf input[type=range].vertical { height: 198px; }
   .remarks { padding: 0.5em 30px 0 24px; min-height: 3.2em; font-size: 1em; line-height: 1.6; color: var(--text); }
+  /* Monopoly profit tool: the demand-intercept knob covers 10 to 18 of a
+     0 to 20 scale (plot area 310px): top at 20 + 310 (1 - 18/20) = 51px,
+     height 310 (8/20) = 124px, so the thumb sits where D meets the axis */
+  .vslider.mp { padding-top: 51px; }
+  .vslider.mp input[type=range].vertical { height: 124px; }
+  .remarks.one { min-height: 1.6em; }
   .remarks div:empty { display: none; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -331,6 +337,7 @@
   <div class="chapter">Chapter 11: Pure monopoly</div>
   <ul>
     <li><a href="#demand-mr">Demand and marginal revenue</a></li>
+    <li><a href="#monopoly-profit">Profit and deadweight loss</a></li>
   </ul>
 </aside>
 
@@ -575,6 +582,26 @@
     <div class="knob-row">
       <span class="knob-name">Tilt</span>
       <input type="range" id="knob-dmr" min="0" max="0.7" step="any" value="0" autocomplete="off">
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="monopoly-profit">
+  <h2 class="group-heading">Chapter 11: Pure monopoly</h2>
+  <section class="tool-card">
+    <h2>Profit and deadweight loss</h2>
+    <div class="panel-body vertical">
+      <div class="vslider mp">
+        <input type="range" class="vertical" id="knob-mp" min="10" max="18" step="0.1" value="15" autocomplete="off">
+      </div>
+      <div id="plot-mp" class="plot eq-plot"></div>
+    </div>
+    <div class="button-row">
+      <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
+      <button class="step-btn" id="btn-mp-plus" title="Add the next step">+</button>
+    </div>
+    <div class="remarks one">
+      <div id="mp-remark-profit"></div>
     </div>
   </section>
 </div>
@@ -1927,6 +1954,139 @@ function registerDemandMRTool() {
   TOOLS["demand-mr"] = { redraw: drawDemandMR, reset: () => resetKnob("knob-dmr") };
 }
 
+// ----------------------------------------------------------------------
+// Tool 15 (chapter 11, slides 9 to 14): profit and deadweight loss of a
+// monopoly. The MC and ATC of the profit tool, a linear demand
+// P = A - 0.4 Q whose intercept A is the vertical knob (10 to 18, default
+// 15, the thumb level with the intercept), and MR = A - 0.8 Q. "-" and
+// "+" walk through the analysis (nothing at 0, curves only):
+//   1 Q* where MR = MC (point 1), on the axis
+//   2 P on D and ATC at Q* (points 3 and 2), both on the axis, remark on
+//     the sign of profit
+//   3 average profit as a thick segment from ATC to P at Q*
+//   4 total profit as the shaded rectangle
+//   5 deadweight loss: the point where D meets MC and the shaded area
+//     between D and MC from Q* to it, labeled with its size
+// Remarks compare one-decimal values, as printed.
+// ----------------------------------------------------------------------
+const MP_B = 0.4, MP_FRAME = { xMax: 22, yMax: 20, xPad: 0.6, yPad: 0.5 };
+const MP_MARGIN = { l: 76, r: 30, t: 20, b: 30 };
+const MP_STEPS = 5, MP_STATE = { n: 0 }, MP_END = 20;
+const MP_DWL = { fill: "rgba(250, 204, 21, 0.5)", text: "#854d0e" };
+// the larger root of 3c q^2 + k q + (a - A) = 0, i.e. MC = A - m q with k = m - 2b
+const mpRoot = (A, m) => {
+  const k = m - 2 * PF_B;
+  return (-k + Math.sqrt(k * k - 12 * PF_C * (PF_A - A))) / (6 * PF_C);
+};
+
+function drawMonopolyProfit() {
+  const A = parseFloat(document.getElementById("knob-mp").value);
+  const n = MP_STATE.n;
+  const D = q => A - MP_B * q, MR = q => A - 2 * MP_B * q;
+  const Q = mpRoot(A, 2 * MP_B), P = D(Q), atc = PF_ATC(Q), mc = PF_MC(Q);
+  const Q6 = mpRoot(A, MP_B), P6 = D(Q6);
+  const r1 = v => Math.round(v * 10) / 10;
+  const P1 = r1(P), atc1 = r1(atc);
+  const gain = P1 >= atc1, col = gain ? PF_COLORS.gain : PF_COLORS.loss;
+
+  const plotEl = document.getElementById("plot-mp");
+  const pxPerUnit = (plotEl.clientHeight - MP_MARGIN.t - MP_MARGIN.b) / MP_FRAME.yMax;
+  const pxPerUnitX = (plotEl.clientWidth - MP_MARGIN.l - MP_MARGIN.r) / MP_FRAME.xMax;
+  const thin = Math.abs(P - atc) * pxPerUnit < 22;
+  // pixel box of the average profit label (step 3), used to keep the DWL
+  // label clear of it: right of Q*, at the segment's middle, or below the
+  // segment when it is too short
+  const avgY = thin ? Math.min(P, atc) * pxPerUnit - 6 - 9 : (P + atc) / 2 * pxPerUnit;
+  const avgBox = { x0: Q * pxPerUnitX + 8, x1: Q * pxPerUnitX + 160, y0: avgY - 9, y1: avgY + 9 };
+  const traces = [], annotations = dsAxisArrows("Q", "$", MP_FRAME);
+  const line = (xs, ys, color, width, dash) => ({ x: xs, y: ys, mode: "lines",
+    line: { color, width, dash: dash || "solid" }, hoverinfo: "skip" });
+  const guide = (xs, ys) => line(xs, ys, "#6b7280", 1.5, "dot");
+  const point = (x, y) => ({ x: [x], y: [y], mode: "markers", marker: { size: 8, color: "#111" }, hoverinfo: "skip" });
+  const name = (text, x, y, color, extra) => ({ text, x, y, xanchor: "left", yanchor: "middle", xshift: 5,
+    showarrow: false, font: { color, size: 14 }, ...extra });
+  const backed = { bgcolor: "rgba(255, 255, 255, 0.75)", borderpad: 2 };
+
+  // step 4: the profit rectangle, and step 5: the deadweight loss, under the curves
+  if (n >= 4) {
+    traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
+                  fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill, line: { width: 0 }, hoverinfo: "skip" });
+    annotations.push({ text: "Total profit = " + pfNum((P - atc) * Q), x: 1.6,
+      y: thin ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
+      yanchor: thin ? "bottom" : "middle", yshift: thin ? 4 : 0, ...backed,
+      showarrow: false, font: { color: col, size: 14 } });
+  }
+  if (n >= 5) {
+    const top = pfSample(D, Q, Q6, (Q6 - Q) / 40), bottom = pfSample(PF_MC, Q, Q6, (Q6 - Q) / 40);
+    traces.push({ x: top.xs.concat(bottom.xs.slice().reverse()), y: top.ys.concat(bottom.ys.slice().reverse()),
+                  mode: "lines", fill: "toself", fillcolor: MP_DWL.fill, line: { width: 0 }, hoverinfo: "skip" });
+    let area = 0;   // trapezoid rule on the sampled edges
+    for (let k = 1; k < top.xs.length; k++) {
+      area += (top.xs[k] - top.xs[k - 1]) * ((top.ys[k] - bottom.ys[k]) + (top.ys[k - 1] - bottom.ys[k - 1])) / 2;
+    }
+    // the label sits above and right of the point where D meets MC (MC
+    // rises steeply above it, D falls below it); pushed up when it would
+    // print on the average profit label
+    let yShift = 4;
+    const dwlBox = { x0: Q6 * pxPerUnitX + 6, x1: Q6 * pxPerUnitX + 76, y0: P6 * pxPerUnit + 4, y1: P6 * pxPerUnit + 22 };
+    if (n >= 3 && dwlBox.x0 < avgBox.x1 && dwlBox.x1 > avgBox.x0 && dwlBox.y0 < avgBox.y1 && dwlBox.y1 > avgBox.y0) {
+      yShift = avgBox.y1 + 3 - P6 * pxPerUnit;
+    }
+    annotations.push({ text: "DWL = " + pfNum(area), x: Q6, y: P6, xanchor: "left", yanchor: "bottom",
+      xshift: 6, yshift: yShift, ...backed, showarrow: false, font: { color: MP_DWL.text, size: 13 } });
+  }
+
+  // curves and their names
+  const mcS = pfSample(PF_MC, 5, 15), atcS = pfSample(PF_ATC, 5.5, 18);
+  const mrEnd = Math.min(MP_END, A / (2 * MP_B));
+  traces.push(line(mcS.xs, mcS.ys, PF_COLORS.mc, 3), line(atcS.xs, atcS.ys, PF_COLORS.atc, 3),
+              line([0, MP_END], [A, D(MP_END)], "#111", 3), line([0, mrEnd], [A, MR(mrEnd)], "#2563eb", 3));
+  annotations.push(name("MC", 15, PF_MC(15), PF_COLORS.mc), name("ATC", 18, PF_ATC(18), PF_COLORS.atc),
+                   name("D", MP_END, D(MP_END), "#111"),
+                   name("MR", mrEnd, MR(mrEnd), "#2563eb", mrEnd < MP_END ? { yanchor: "top", yshift: -3 } : {}));
+
+  const axisItems = [];
+  if (n >= 1) {
+    traces.push(guide([Q, Q], [0, n >= 2 ? P : mc]), point(Q, mc));
+    annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
+                       showarrow: false, font: { color: "#012169", size: 13 } });
+  }
+  if (n >= 2) {
+    traces.push(guide([0, Q], [P, P]), guide([0, Q], [atc, atc]), point(Q, P), point(Q, atc));
+    axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
+  }
+  if (n >= 3) {
+    traces.push(line([Q, Q], [atc, P], col, 5));
+    annotations.push({ text: "Average profit = " + pfNum(P - atc), x: Q,
+      y: thin ? Math.min(P, atc) : (P + atc) / 2, xanchor: "left",
+      yanchor: thin ? "top" : "middle", xshift: 8, yshift: thin ? -6 : 0, ...backed,
+      showarrow: false, font: { color: col, size: 14 } });
+  }
+  if (n >= 5) traces.push(point(Q6, P6));
+  const shifts = pfSpread(axisItems, pxPerUnit, 14);
+  axisItems.forEach((it, i) => annotations.push({ text: it.text, x: 0, y: it.y, xanchor: "right",
+    yanchor: "middle", xshift: -4, yshift: shifts[i], showarrow: false, font: { color: "#012169", size: 13 } }));
+
+  document.getElementById("mp-remark-profit").textContent = n < 2 ? ""
+    : P1 > atc1 ? "Profit is positive because P > ATC"
+    : P1 < atc1 ? "Profit is negative because P < ATC" : "Profit is zero because P = ATC";
+
+  const layout = { margin: MP_MARGIN, ...dsAxes(MP_FRAME), showlegend: false, annotations };
+  Plotly.react("plot-mp", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerMonopolyProfitTool() {
+  const minus = document.getElementById("btn-mp-minus"), plus = document.getElementById("btn-mp-plus");
+  const update = () => {
+    minus.disabled = MP_STATE.n <= 0; plus.disabled = MP_STATE.n >= MP_STEPS;
+    drawMonopolyProfit();
+  };
+  minus.addEventListener("click", () => { if (MP_STATE.n > 0) { MP_STATE.n--; update(); } });
+  plus.addEventListener("click", () => { if (MP_STATE.n < MP_STEPS) { MP_STATE.n++; update(); } });
+  document.getElementById("knob-mp").addEventListener("input", drawMonopolyProfit);
+  TOOLS["monopoly-profit"] = { redraw: update, reset: () => { MP_STATE.n = 0; resetKnob("knob-mp"); } };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1962,6 +2122,7 @@ window.addEventListener("DOMContentLoaded", () => {
   registerProfitTool();
   registerEntryExitTool();
   registerDemandMRTool();
+  registerMonopolyProfitTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
