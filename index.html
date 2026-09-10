@@ -328,6 +328,10 @@
     <li><a href="#profit-shutdown">Profit and the shutdown decision</a></li>
     <li><a href="#entry-exit">Entry, exit, and the long run</a></li>
   </ul>
+  <div class="chapter">Chapter 11: Pure monopoly</div>
+  <ul>
+    <li><a href="#demand-mr">Demand and marginal revenue</a></li>
+  </ul>
 </aside>
 
 <main>
@@ -559,6 +563,18 @@
     <div class="button-row">
       <label class="toggle"><input type="radio" name="ee-start" id="ee-start-profit" value="0" checked autocomplete="off"> Starting point 1</label>
       <label class="toggle"><input type="radio" name="ee-start" id="ee-start-loss" value="100" autocomplete="off"> Starting point 2</label>
+    </div>
+  </section>
+</div>
+
+<div class="tool-page" id="demand-mr">
+  <h2 class="group-heading">Chapter 11: Pure monopoly</h2>
+  <section class="tool-card">
+    <h2>Demand and marginal revenue</h2>
+    <div id="plot-dmr" class="plot eq-plot"></div>
+    <div class="knob-row">
+      <span class="knob-name">Tilt</span>
+      <input type="range" id="knob-dmr" min="0" max="0.7" step="any" value="0" autocomplete="off">
     </div>
   </section>
 </div>
@@ -1871,6 +1887,46 @@ function registerEntryExitTool() {
   };
 }
 
+// ----------------------------------------------------------------------
+// Tool 14 (chapter 11, slides 6 to 8): demand and marginal revenue. One
+// horizontal line at P = 7 labeled P = D = AR = MR. The knob tilts it
+// down about its intercept: D is P = 7 - b Q and MR is P = 7 - 2 b Q
+// (twice as steep). As soon as b > 0 the MR line (blue) departs from D
+// (black), each with its own label at its right end; both stop at the
+// Q axis. No numbers beyond the 7 on the P axis.
+// ----------------------------------------------------------------------
+const DMR_FRAME = { xMax: 22, yMax: 10, xPad: 0.6, yPad: 0.3 };
+const DMR_MARGIN = { l: 34, r: 30, t: 20, b: 30 };
+const DMR_P0 = 7, DMR_END = 19;
+
+function drawDemandMR() {
+  const b = parseFloat(document.getElementById("knob-dmr").value);
+  const endAt = slope => slope > 0 ? Math.min(DMR_END, DMR_P0 / slope) : DMR_END;
+  const qD = endAt(b), qM = endAt(2 * b);
+  const traces = [];
+  const annotations = dsAxisArrows("Q", "P", DMR_FRAME);
+  const label = (text, x, y, color, above) => ({ text, x, y, xanchor: "left",
+    yanchor: above ? "bottom" : "top", xshift: 5, yshift: above ? 3 : -3,
+    showarrow: false, font: { color, size: 15 } });
+  if (b > 0) {
+    traces.push({ x: [0, qM], y: [DMR_P0, DMR_P0 - 2 * b * qM], mode: "lines",
+                  line: { color: "#2563eb", width: 3 }, hoverinfo: "skip" });
+    annotations.push(label("MR", qM, DMR_P0 - 2 * b * qM, "#2563eb", false));
+  }
+  traces.push({ x: [0, qD], y: [DMR_P0, DMR_P0 - b * qD], mode: "lines",
+                line: { color: "#111", width: 3 }, hoverinfo: "skip" });
+  annotations.push(label(b > 0 ? "P = D = AR" : "P = D = AR = MR", qD, DMR_P0 - b * qD, "#111", true));
+  annotations.push({ text: "$7", x: 0, y: DMR_P0, xanchor: "right", yanchor: "middle", xshift: -4,
+                     showarrow: false, font: { color: "#012169", size: 14 } });
+  const layout = { margin: DMR_MARGIN, ...dsAxes(DMR_FRAME), showlegend: false, annotations };
+  Plotly.react("plot-dmr", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+function registerDemandMRTool() {
+  document.getElementById("knob-dmr").addEventListener("input", drawDemandMR);
+  TOOLS["demand-mr"] = { redraw: drawDemandMR, reset: () => resetKnob("knob-dmr") };
+}
+
 function registerCurveTool(id, c) {
   document.getElementById(c.moveKnob).addEventListener("input", () => drawMove(c));
   document.getElementById(c.shiftKnob).addEventListener("input", () => drawShift(c));
@@ -1905,6 +1961,7 @@ window.addEventListener("DOMContentLoaded", () => {
   registerMarketFirmTool();
   registerProfitTool();
   registerEntryExitTool();
+  registerDemandMRTool();
 
   showTool(location.hash.replace("#", ""));
   window.addEventListener("hashchange", () => showTool(location.hash.replace("#", "")));
