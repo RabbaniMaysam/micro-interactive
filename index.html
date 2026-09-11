@@ -336,7 +336,7 @@
   <div class="chapter">Chapter 11: Pure monopoly</div>
   <ul>
     <li><a href="#demand-mr">Demand and marginal revenue</a></li>
-    <li><a href="#monopoly-profit">Profit and deadweight loss</a></li>
+    <li><a href="#monopoly-profit">Monopoly profit and shutdown</a></li>
   </ul>
 </aside>
 
@@ -569,6 +569,8 @@
     <div class="button-row">
       <label class="toggle"><input type="radio" name="ee-start" id="ee-start-profit" value="0" checked autocomplete="off"> Starting point 1</label>
       <label class="toggle"><input type="radio" name="ee-start" id="ee-start-loss" value="100" autocomplete="off"> Starting point 2</label>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="toggle-ee-arc" autocomplete="off"> Highlight</label>
     </div>
   </section>
 </div>
@@ -588,7 +590,7 @@
 <div class="tool-page" id="monopoly-profit">
   <h2 class="group-heading">Chapter 11: Pure monopoly</h2>
   <section class="tool-card">
-    <h2>Profit and deadweight loss</h2>
+    <h2>Monopoly profit and shutdown</h2>
     <div class="panel-body vertical">
       <div class="vslider mp">
         <input type="range" class="vertical" id="knob-mp" min="9.5" max="24" step="0.1" value="16" autocomplete="off">
@@ -1325,7 +1327,9 @@ function registerElasticityTool() {
 // symmetric pairs) print once, and labels closer than 13px are spread apart.
 // ----------------------------------------------------------------------
 const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
-const LR_MARGIN = { l: 30, r: 30, t: 20, b: 26 };
+// r leaves room for "Long-run ATC" right of the envelope's end (Q = 98 of
+// 110) on a narrow page; at 30 the name was cut off at the div's edge
+const LR_MARGIN = { l: 30, r: 80, t: 20, b: 26 };
 const LR_FRAME = { xMax: 110, yMax: 56 };
 const LR = q => 10 + 0.012 * (q - 50) ** 2;
 const LRd = q => 0.024 * (q - 50);
@@ -1503,9 +1507,10 @@ function registerNaturalMonopolyTool() {
 // A dotted line runs from the market's P axis through the equilibrium
 // across the gap to the firm's P axis (a paper-referenced shape, so it
 // bridges the two subplots). Two knobs under the market panel shift D and
-// S (the SEQ geometry: e at (64, 62), segments of half-length 29 centered
-// on the shifted curve's own position and extended to keep the crossing
-// on both); the firm's line follows in real time. Once a knob leaves the
+// S (the SEQ geometry: e at (64, 62), segments of half-length 29, both
+// always centered on the current crossing, so each line keeps its length
+// and is cut by the other at its midpoint; the user's rule, September 10,
+// 2026); the firm's line follows in real time. Once a knob leaves the
 // center, the original curves and the original firm line stay as thin
 // gray ghosts. No numbers anywhere.
 // ----------------------------------------------------------------------
@@ -1543,8 +1548,8 @@ function drawMarketFirm() {
                   line: { color: MF_GHOST, width: 2 }, hoverinfo: "skip" });
   }
 
-  // market: shifted D and S, each centered on its own shifted position
-  const spanD = seqSpan(Q1 + sd, [Q]), spanS = seqSpan(Q1 + ss, [Q]);
+  // market: shifted D and S, both centered on the crossing (fixed length)
+  const spanD = seqSpan(Q, []), spanS = spanD;
   traces.push(seqLine(d, sd, spanD, "#111"), seqLine(s, ss, spanS, "#111"));
   annotations.push(seqEndLabel(d, sd, spanD, "D", "#111"), seqEndLabel(s, ss, spanS, "S", "#111"));
   // vertical guide under the equilibrium; the horizontal guide is the shape below
@@ -1862,7 +1867,8 @@ function drawEntryExit() {
                      yanchor: lineBelow ? "bottom" : "top", yshift: lineBelow ? 4 : -4 })));
   traces.push(line([0, EE_LINE_END], [P, P], "#111", 3, firm));
   annotations.push(name("D = MR = P", EE_LINE_END, P, "#111", mfOnFirm({})));
-  if (!even) {
+  // the thick piece of MC between the two points, only while "Highlight" is on
+  if (!even && document.getElementById("toggle-ee-arc").checked) {
     const arc = pfSample(PF_MC, Math.min(qStar, qMin), Math.max(qStar, qMin), 0.02);
     traces.push(line(arc.xs, arc.ys, col, 7, firm));
   }
@@ -1899,6 +1905,7 @@ function drawEntryExit() {
 function registerEntryExitTool() {
   const knob = document.getElementById("knob-ee");
   knob.addEventListener("input", drawEntryExit);
+  document.getElementById("toggle-ee-arc").addEventListener("change", drawEntryExit);
   ["ee-start-profit", "ee-start-loss"].forEach(id => {
     const r = document.getElementById(id);
     r.addEventListener("change", () => {
@@ -1909,7 +1916,8 @@ function registerEntryExitTool() {
   TOOLS["entry-exit"] = {
     redraw: drawEntryExit,
     reset: () => {
-      EE_STATE.start = 0; document.getElementById("ee-start-profit").checked = true; resetKnob("knob-ee");
+      EE_STATE.start = 0; document.getElementById("ee-start-profit").checked = true;
+      document.getElementById("toggle-ee-arc").checked = false; resetKnob("knob-ee");
     }
   };
 }
@@ -1955,8 +1963,9 @@ function registerDemandMRTool() {
 }
 
 // ----------------------------------------------------------------------
-// Tool 15 (chapter 11, slides 9 to 14): profit and deadweight loss of a
-// monopoly. Its own costs, higher and tighter than the chapter 10 tool's
+// Tool 15 (chapter 11, slides 9 to 14): profit and the shutdown decision
+// of a monopoly (no deadweight loss: the figure is a short-run one).
+// Its own costs, higher and tighter than the chapter 10 tool's
 // so that D and MR can be pushed entirely below them: the same AVC shape
 // (curvature 1/13, minimum at q = 10) raised to a minimum of 7, and a
 // fixed cost of 24 (ATC minimum about 9.25 at q = 11.2, on MC). A linear
@@ -1970,16 +1979,13 @@ function registerDemandMRTool() {
 //   3 AVC at Q* on the axis, remark on producing or shutting down
 //   4 average profit as a thick segment from ATC to P at Q*
 //   5 total profit as the shaded rectangle
-//   6 deadweight loss: the point where D meets MC and the shaded area
-//     between D and MC from Q* to it, labeled with its size
 // Remarks compare one-decimal values, as printed. Curve names at the
 // right ends of ATC and AVC move above or below the end when the average
 // profit label would print on them.
 // ----------------------------------------------------------------------
 const MP_B = 0.4, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
-const MP_STEPS = 6, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
-const MP_DWL = { fill: "rgba(250, 204, 21, 0.5)", text: "#854d0e" };
+const MP_STEPS = 5, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
 const MP_A0 = 7 + 100 / 13, MP_FC = 24;   // AVC = MP_A0 - PF_B q + PF_C q^2, minimum 7 at q = 10
 const MP_AVC = q => MP_A0 - PF_B * q + PF_C * q * q;
 const MP_ATC = q => MP_AVC(q) + MP_FC / q;
@@ -1995,7 +2001,6 @@ function drawMonopolyProfit() {
   const n = MP_STATE.n;
   const D = q => A - MP_B * q, MR = q => A - 2 * MP_B * q;
   const Q = mpRoot(A, 2 * MP_B), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
-  const Q6 = mpRoot(A, MP_B), P6 = D(Q6);
   const r1 = v => Math.round(v * 10) / 10;
   const P1 = r1(P), atc1 = r1(atc), avc1 = r1(avc);
   const gain = P1 >= atc1, col = gain ? PF_COLORS.gain : PF_COLORS.loss;
@@ -2004,8 +2009,8 @@ function drawMonopolyProfit() {
   const pxPerUnit = (plotEl.clientHeight - MP_MARGIN.t - MP_MARGIN.b) / MP_FRAME.yMax;
   const pxPerUnitX = (plotEl.clientWidth - MP_MARGIN.l - MP_MARGIN.r) / MP_FRAME.xMax;
   const thin = Math.abs(P - atc) * pxPerUnit < 22;
-  // pixel box of the average profit label (step 3), used to keep the DWL
-  // label clear of it: right of Q*, at the segment's middle, or below the
+  // pixel box of the average profit label (step 4), used to keep the curve
+  // names clear of it: right of Q*, at the segment's middle, or below the
   // segment when it is too short
   const avgY = thin ? Math.min(P, atc) * pxPerUnit - 6 - 9 : (P + atc) / 2 * pxPerUnit;
   const avgBox = n >= 4 ? { x0: Q * pxPerUnitX + 8, x1: Q * pxPerUnitX + 160, y0: avgY - 9, y1: avgY + 9 } : null;
@@ -2028,7 +2033,7 @@ function drawMonopolyProfit() {
     showarrow: false, font: { color, size: 14 }, ...extra });
   const backed = { bgcolor: "rgba(255, 255, 255, 0.75)", borderpad: 2 };
 
-  // step 5: the profit rectangle, and step 6: the deadweight loss, under the curves
+  // step 5: the profit rectangle, under the curves
   if (n >= 5) {
     traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
                   fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill, line: { width: 0 }, hoverinfo: "skip" });
@@ -2036,23 +2041,6 @@ function drawMonopolyProfit() {
       y: thin ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
       yanchor: thin ? "bottom" : "middle", yshift: thin ? 4 : 0, ...backed,
       showarrow: false, font: { color: col, size: 14 } });
-  }
-  if (n >= 6) {
-    const top = pfSample(D, Q, Q6, (Q6 - Q) / 40), bottom = pfSample(MP_MC, Q, Q6, (Q6 - Q) / 40);
-    traces.push({ x: top.xs.concat(bottom.xs.slice().reverse()), y: top.ys.concat(bottom.ys.slice().reverse()),
-                  mode: "lines", fill: "toself", fillcolor: MP_DWL.fill, line: { width: 0 }, hoverinfo: "skip" });
-    let area = 0;   // trapezoid rule on the sampled edges
-    for (let k = 1; k < top.xs.length; k++) {
-      area += (top.xs[k] - top.xs[k - 1]) * ((top.ys[k] - bottom.ys[k]) + (top.ys[k - 1] - bottom.ys[k - 1])) / 2;
-    }
-    // the label sits above and right of the point where D meets MC (MC
-    // rises steeply above it, D falls below it); pushed up when it would
-    // print on the average profit label
-    let yShift = 4;
-    const dwlBox = { x0: Q6 * pxPerUnitX + 6, x1: Q6 * pxPerUnitX + 76, y0: P6 * pxPerUnit + 4, y1: P6 * pxPerUnit + 22 };
-    if (hits(dwlBox)) yShift = avgBox.y1 + 3 - P6 * pxPerUnit;
-    annotations.push({ text: "DWL = " + pfNum(area), x: Q6, y: P6, xanchor: "left", yanchor: "bottom",
-      xshift: 6, yshift: yShift, ...backed, showarrow: false, font: { color: MP_DWL.text, size: 13 } });
   }
 
   // curves and their names
@@ -2091,7 +2079,6 @@ function drawMonopolyProfit() {
       yanchor: thin ? "top" : "middle", xshift: 8, yshift: thin ? -6 : 0, ...backed,
       showarrow: false, font: { color: col, size: 14 } });
   }
-  if (n >= 6) traces.push(point(Q6, P6));
   const shifts = pfSpread(axisItems, pxPerUnit, 14);
   axisItems.forEach((it, i) => annotations.push({ text: it.text, x: 0, y: it.y, xanchor: "right",
     yanchor: "middle", xshift: -4, yshift: shifts[i], showarrow: false, font: { color: "#012169", size: 13 } }));
