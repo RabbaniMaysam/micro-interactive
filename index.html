@@ -509,8 +509,8 @@
     <h2>Natural monopoly</h2>
     <div id="plot-nm" class="plot eq-plot"></div>
     <div class="button-row">
-      <label class="toggle"><input type="checkbox" id="toggle-nm-a" checked autocomplete="off"> Company A</label>
-      <label class="toggle"><input type="checkbox" id="toggle-nm-b" checked autocomplete="off"> Company B</label>
+      <label class="toggle"><input type="checkbox" id="toggle-nm-a" autocomplete="off"> Company A quits</label>
+      <label class="toggle"><input type="checkbox" id="toggle-nm-b" autocomplete="off"> Company B quits</label>
     </div>
   </section>
 </div>
@@ -1434,8 +1434,9 @@ function registerLongRunTool() {
 // NM_ATC(Q) = 1 + 8 exp(-(Q - 1)/4): 9 at Q = 1, about 1 at Q = 20. Three
 // firms sit on it: A at Q = 4, B at Q = 5, and PSE&G at Q = 10. Each point
 // has its Q on the quantity axis and its cost on the vertical axis (one
-// decimal). Unchecking Company A or B removes that firm and adds its
-// output to PSE&G, which slides down the curve (to 14, 15, or 19).
+// decimal). Checking "Company A quits" or "Company B quits" (both off by
+// default) removes that firm and adds its output to PSE&G, which slides
+// down the curve (to 14, 15, or 19).
 // ----------------------------------------------------------------------
 const NM_FRAME = { xMax: 22, yMax: 10.5, xPad: 0.6, yPad: 0.25 };
 const NM_ATC = Q => 1 + 8 * Math.exp(-(Q - 1) / 4);
@@ -1446,8 +1447,8 @@ function drawNaturalMonopoly() {
   const pts = [];
   let qBig = NM_BIG.q;
   NM_FIRMS.forEach(f => {
-    if (document.getElementById(f.toggle).checked) pts.push({ name: f.name, q: f.q });
-    else qBig += f.q;
+    if (document.getElementById(f.toggle).checked) qBig += f.q;   // the firm quit
+    else pts.push({ name: f.name, q: f.q });
   });
   pts.push({ name: NM_BIG.name, q: qBig });
   const xs = [], ys = [];
@@ -1489,7 +1490,7 @@ function registerNaturalMonopolyTool() {
   NM_FIRMS.forEach(f => document.getElementById(f.toggle).addEventListener("change", drawNaturalMonopoly));
   TOOLS["natural-monopoly"] = {
     redraw: drawNaturalMonopoly,
-    reset: () => NM_FIRMS.forEach(f => { document.getElementById(f.toggle).checked = true; })
+    reset: () => NM_FIRMS.forEach(f => { document.getElementById(f.toggle).checked = false; })
   };
 }
 
