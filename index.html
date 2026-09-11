@@ -280,11 +280,6 @@
   .vslider.pf { padding-top: 89px; }
   .vslider.pf input[type=range].vertical { height: 198px; }
   .remarks { padding: 0.5em 30px 0 24px; min-height: 3.2em; font-size: 1em; line-height: 1.6; color: var(--text); }
-  /* Monopoly profit tool: the demand-intercept knob covers 9.5 to 24 of a
-     0 to 26 scale (plot area 310px): top at 20 + 310 (1 - 24/26) = 44px,
-     height 310 (14.5/26) = 173px, so the thumb sits where D meets the axis */
-  .vslider.mp { padding-top: 44px; }
-  .vslider.mp input[type=range].vertical { height: 173px; }
   .remarks div:empty { display: none; }
   @media (max-width: 900px) {
     .layout { grid-template-columns: 1fr; }
@@ -591,11 +586,10 @@
   <h2 class="group-heading">Chapter 11: Pure monopoly</h2>
   <section class="tool-card">
     <h2>Monopoly profit and shutdown</h2>
-    <div class="panel-body vertical">
-      <div class="vslider mp">
-        <input type="range" class="vertical" id="knob-mp" min="9.5" max="24" step="0.1" value="16" autocomplete="off">
-      </div>
-      <div id="plot-mp" class="plot eq-plot"></div>
+    <div id="plot-mp" class="plot eq-plot"></div>
+    <div class="knob-row">
+      <span class="knob-name">Tilt</span>
+      <input type="range" id="knob-mp" min="0.15" max="2" step="any" value="0.6" autocomplete="off">
     </div>
     <div class="button-row">
       <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
@@ -1965,14 +1959,21 @@ function registerDemandMRTool() {
 // ----------------------------------------------------------------------
 // Tool 15 (chapter 11, slides 9 to 14): profit and the shutdown decision
 // of a monopoly (no deadweight loss: the figure is a short-run one).
-// Its own costs, higher and tighter than the chapter 10 tool's
-// so that D and MR can be pushed entirely below them: the same AVC shape
-// (curvature 1/13, minimum at q = 10) raised to a minimum of 7, and a
-// fixed cost of 24 (ATC minimum about 9.25 at q = 11.2, on MC). A linear
-// demand P = A - 0.4 Q whose intercept A is the vertical knob (9.5 to 24,
-// default 16, the thumb level with the intercept), and MR = A - 0.8 Q; at
-// the knob's bottom D lies under AVC everywhere it is drawn. "-" and "+"
-// walk through the analysis (nothing at 0, curves only):
+// The demand D = 22 - b Q pivots about its fixed intercept 22: the knob is
+// the slope b (0.15 to 2, default 0.6), and MR = 22 - 2 b Q; both stop at
+// Q = 20 or at the Q axis. A flat D reaches a large profit, a steep one a
+// large loss and then P < AVC (the user's design, September 10, 2026).
+// Costs: MC is the chapter 10 shape raised so that its AVC part has its
+// minimum 7 at q = 10 (curvature 1/13); the variable cost also holds a
+// lump of MP_K, so AVC = 7 + (q - 10)^2/13 + MP_K/q (a lump in variable
+// cost does not touch MC, but lifts AVC at small q, which is what puts P
+// under AVC at a steep tilt: with 22 fixed, P = (22 + MC)/2 at Q*, and a
+// plain quadratic AVC never gets above that); ATC = AVC + MP_FC/q. With
+// MP_K = 30 and MP_FC = 24: AVC minimum 9.8 at q = 11.5, ATC minimum 11.8
+// at q = 12.3, both on MC; profit for b under 1.0, a loss up to 1.5, and
+// shut down beyond (Q* from 14.3 at 0.15 to 4.0 at 2, the start of the
+// drawn cost curves). "-" and "+" walk through the analysis (nothing at 0,
+// curves only):
 //   1 Q* where MR = MC (point 1), on the axis
 //   2 P on D and ATC at Q* (points 3 and 2), both on the axis, remark on
 //     the sign of profit
@@ -1983,11 +1984,11 @@ function registerDemandMRTool() {
 // right ends of ATC and AVC move above or below the end when the average
 // profit label would print on them.
 // ----------------------------------------------------------------------
-const MP_B = 0.4, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
+const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
 const MP_STEPS = 5, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
-const MP_A0 = 7 + 100 / 13, MP_FC = 24;   // AVC = MP_A0 - PF_B q + PF_C q^2, minimum 7 at q = 10
-const MP_AVC = q => MP_A0 - PF_B * q + PF_C * q * q;
+const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 24;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
+const MP_AVC = q => MP_A0 - PF_B * q + PF_C * q * q + MP_K / q;
 const MP_ATC = q => MP_AVC(q) + MP_FC / q;
 const MP_MC = q => MP_A0 - 2 * PF_B * q + 3 * PF_C * q * q;
 // the larger root of 3c q^2 + k q + (a - A) = 0, i.e. MC = A - m q with k = m - 2b
@@ -1997,10 +1998,10 @@ const mpRoot = (A, m) => {
 };
 
 function drawMonopolyProfit() {
-  const A = parseFloat(document.getElementById("knob-mp").value);
+  const b = parseFloat(document.getElementById("knob-mp").value), A = MP_A;
   const n = MP_STATE.n;
-  const D = q => A - MP_B * q, MR = q => A - 2 * MP_B * q;
-  const Q = mpRoot(A, 2 * MP_B), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
+  const D = q => A - b * q, MR = q => A - 2 * b * q;
+  const Q = mpRoot(A, 2 * b), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
   const r1 = v => Math.round(v * 10) / 10;
   const P1 = r1(P), atc1 = r1(atc), avc1 = r1(avc);
   const gain = P1 >= atc1, col = gain ? PF_COLORS.gain : PF_COLORS.loss;
@@ -2037,26 +2038,33 @@ function drawMonopolyProfit() {
   if (n >= 5) {
     traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
                   fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill, line: { width: 0 }, hoverinfo: "skip" });
+    // the label sits in the band's left part, or above the band when the
+    // band is thin or so narrow (a small Q*) that the average profit label
+    // would print on it
+    const midY = (P + atc) / 2 * pxPerUnit;
+    const above = thin || hits({ x0: 1.6 * pxPerUnitX, x1: 1.6 * pxPerUnitX + 175, y0: midY - 9, y1: midY + 9 });
     annotations.push({ text: "Total profit = " + pfNum((P - atc) * Q), x: 1.6,
-      y: thin ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
-      yanchor: thin ? "bottom" : "middle", yshift: thin ? 4 : 0, ...backed,
+      y: above ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
+      yanchor: above ? "bottom" : "middle", yshift: above ? 4 : 0, ...backed,
       showarrow: false, font: { color: col, size: 14 } });
   }
 
   // curves and their names
   const mcS = pfSample(MP_MC, MP_COST_START, MP_MC_END), atcS = pfSample(MP_ATC, MP_COST_START, MP_COST_END),
         avcS = pfSample(MP_AVC, MP_COST_START, MP_COST_END);
-  const mrEnd = Math.min(MP_END, A / (2 * MP_B));
+  const dEnd = Math.min(MP_END, A / b), mrEnd = Math.min(MP_END, A / (2 * b));
   traces.push(line(mcS.xs, mcS.ys, PF_COLORS.mc, 3), line(atcS.xs, atcS.ys, PF_COLORS.atc, 3),
               line(avcS.xs, avcS.ys, PF_COLORS.avc, 3),
-              line([0, MP_END], [A, D(MP_END)], "#111", 3), line([0, mrEnd], [A, MR(mrEnd)], "#2563eb", 3));
+              line([0, dEnd], [A, D(dEnd)], "#111", 3), line([0, mrEnd], [A, MR(mrEnd)], "#2563eb", 3));
+  // a line's name goes below and right of its end when the end is on or
+  // near the Q axis (MR ends left of D, and both right of Q*, so the names
+  // stay clear of each other and of "Q* = n")
+  const onAxis = y => y < 1 ? { yanchor: "top", xshift: 4, yshift: -4 } : {};
   annotations.push(name("MC", MP_MC_END, MP_MC(MP_MC_END), PF_COLORS.mc),
                    nameClear("ATC", MP_COST_END, MP_ATC(MP_COST_END), PF_COLORS.atc),
                    nameClear("AVC", MP_COST_END, MP_AVC(MP_COST_END), PF_COLORS.avc),
-                   name("D", MP_END, D(MP_END), "#111"),
-                   // MR's name goes below and left of its end when the end is on or near the Q axis
-                   name("MR", mrEnd, MR(mrEnd), "#2563eb",
-                        MR(mrEnd) < 1 ? { xanchor: "right", yanchor: "top", xshift: -2, yshift: -4 } : {}));
+                   name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))),
+                   name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
   const axisItems = [];
   if (n >= 1) {
