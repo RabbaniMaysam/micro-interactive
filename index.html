@@ -499,6 +499,7 @@
       <span class="spacer"></span>
       <label class="toggle"><input type="checkbox" id="toggle-lr-dissect" autocomplete="off"> Dissect</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-lrac" autocomplete="off"> Long-run ATC</label>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-only" autocomplete="off"> Long-run only</label>
     </div>
   </section>
 </div>
@@ -812,8 +813,8 @@ const EXP_ROWS = 5;
 const EXP_P_DEFAULT_MAX = 2000;
 
 const EXPERIMENTS = {
-  demand: { table: "table-demand", plot: "plot-demand", labelSide: "top right" },
-  supply: { table: "table-supply", plot: "plot-supply", labelSide: "top left" }
+  demand: { table: "table-demand", plot: "plot-demand" },
+  supply: { table: "table-supply", plot: "plot-supply" }
 };
 
 function buildExperimentTable(cfg) {
@@ -870,13 +871,11 @@ function drawExperiment(cfg) {
       mode: "lines+markers+text",
       line: { color: "#012169", width: 3 },
       marker: { color: "#111", size: 9 },
-      // the table's row number in front of the price, so a point in the
-      // figure can be named in class ("point 3") and found in the table
-      text: rows.map(r => r.n + ": $" + fmtQty(r.p)),
-      // labels go above the curve on the side the curve is leaving: to the
-      // right of a falling curve (demand), to the left of a rising one
-      // (supply), so the text never prints on the line itself
-      textposition: cfg.labelSide || "top right",
+      // the table's row number alone, so a point in the figure can be
+      // named in class ("point 3") and found in the table
+      text: rows.map(r => String(r.n)),
+      // a bare number sits directly above its point on either curve
+      textposition: "top center",
       textfont: { color: "#012169", size: 12 },
       cliponaxis: false,
       hovertemplate: "$%{y}, quantity %{x}<extra></extra>"
@@ -1094,11 +1093,11 @@ function drawEquilibrium() {
     // surplus or shortage segment, B for the right end. At the
     // equilibrium price A and B would coincide with e, so none is shown.
     annotations.push(
-      { text: "e", x: EQ_Q, y: EQ_P, xanchor: "left", yanchor: "bottom", xshift: 4, yshift: 2,
+      { text: "e", x: EQ_Q, y: EQ_P, xanchor: "center", yanchor: "bottom", yshift: 7,
         showarrow: false, font: { color: GRAY, size: 15 } },
-      { text: "A", x: qLo, y: P, xanchor: "right", yanchor: "bottom", xshift: -4, yshift: 4,
+      { text: "A", x: qLo, y: P, xanchor: "center", yanchor: "bottom", yshift: 7,
         showarrow: false, font: { color: "#111", size: 15 } },
-      { text: "B", x: qHi, y: P, xanchor: "left", yanchor: "bottom", xshift: 4, yshift: 4,
+      { text: "B", x: qHi, y: P, xanchor: "center", yanchor: "bottom", yshift: 7,
         showarrow: false, font: { color: "#111", size: 15 } },
       { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle",
         xshift: -11, textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } });
@@ -1357,9 +1356,14 @@ function lrCurve(i) {
 }
 
 function drawLongRun() {
-  const dissect = document.getElementById("toggle-lr-dissect").checked;
-  const lrac = document.getElementById("toggle-lr-lrac").checked;
-  const curves = []; for (let i = 0; i < LR_STATE.n; i++) curves.push(lrCurve(i));
+  // "Long-run only" clears the figure of everything short-run: no ATC
+  // curves, no names, no crossing guides, leaving the envelope alone. It
+  // implies the long-run ATC, so that curve is drawn whatever its own
+  // checkbox says, and the other two controls have nothing left to act on.
+  const only = document.getElementById("toggle-lr-only").checked;
+  const dissect = !only && document.getElementById("toggle-lr-dissect").checked;
+  const lrac = only || document.getElementById("toggle-lr-lrac").checked;
+  const curves = []; if (!only) for (let i = 0; i < LR_STATE.n; i++) curves.push(lrCurve(i));
   const traces = [], annotations = dsAxisArrows("Q", "ATC", LR_FRAME);
   if (lrac) {
     const xs = [], ys = [];
@@ -1428,21 +1432,28 @@ function drawLongRun() {
 
 function registerLongRunTool() {
   const minus = document.getElementById("btn-lr-minus"), plus = document.getElementById("btn-lr-plus");
+  const only = document.getElementById("toggle-lr-only");
   const update = () => {
-    minus.disabled = LR_STATE.n <= 1;
-    plus.disabled = LR_STATE.n >= LR_N;
+    // while "Long-run only" is on there is no short-run curve to add,
+    // remove, dissect, or envelope, so those four controls are disabled
+    const solo = only.checked;
+    minus.disabled = solo || LR_STATE.n <= 1;
+    plus.disabled = solo || LR_STATE.n >= LR_N;
+    ["toggle-lr-dissect", "toggle-lr-lrac"].forEach(id =>
+      document.getElementById(id).disabled = solo);
     drawLongRun();
   };
   plus.addEventListener("click", () => { if (LR_STATE.n < LR_N) { LR_STATE.n++; update(); } });
   minus.addEventListener("click", () => { if (LR_STATE.n > 1) { LR_STATE.n--; update(); } });
-  ["toggle-lr-dissect", "toggle-lr-lrac"].forEach(id =>
-    document.getElementById(id).addEventListener("change", drawLongRun));
+  ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-only"].forEach(id =>
+    document.getElementById(id).addEventListener("change", update));
   TOOLS["long-run-atc"] = {
     redraw: update,
     reset: () => {
       LR_STATE.n = 1;
       document.getElementById("toggle-lr-dissect").checked = false;
       document.getElementById("toggle-lr-lrac").checked = false;
+      only.checked = false;
     }
   };
 }
@@ -1721,20 +1732,38 @@ function drawProfit() {
   traces.push(line([0, PF_MR_END], [P, P], "#111", 3));
   annotations.push(name("MR", PF_MR_END, P, "#111"));
 
+  // Numbered points, so a crossing can be named in class ("point 2"). All
+  // three sit on the vertical at Q*, so they are numbered top down by
+  // height: 1 is the highest. Numbering by height rather than by reveal
+  // order keeps neighboring numbers from swapping places when the price
+  // knob moves P below ATC.
+  const shown = [];
   const axisItems = [];   // labels on the vertical axis, spread apart if needed
   if (n >= 1) {
     traces.push(guide([Q, Q], [0, P]), point(Q, P));
+    shown.push(P);
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
   if (n >= 2) {
     traces.push(guide([0, Q], [atc, atc]), point(Q, atc));
+    shown.push(atc);
     axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
   }
   if (n >= 3) {
     traces.push(guide([0, Q], [avc, avc]), point(Q, avc));
+    shown.push(avc);
     axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
   }
+  // a number sits up and left of its marker, nudged further out when the
+  // point below it is within a few pixels
+  const ptYs = shown.slice().sort((a, b) => b - a);
+  ptYs.forEach((y, i) => {
+    const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
+    annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
+      xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
+      font: { color: "#111", size: 13 } });
+  });
   if (n >= 4) {
     traces.push(line([Q, Q], [atc, P], col, 5));
     // right of the segment at its middle (below the line when the segment is
@@ -1866,6 +1895,17 @@ function drawEntryExit() {
   annotations.push(name("D", spanD[1], EE_D(spanD[1]), "#111"), name("S", spanS[1], EE_TOP, "#111"));
   traces.push(guide([Q, Q], [0, P]), point(Q, P));
   annotations.push(num(pfNum(P), 0, P, true), num("Q", Q, 0, false));
+  // Numbered points, so a crossing can be named in class ("point 2"):
+  // 1 is the market crossing of D and S, 2 the firm's chosen quantity
+  // where MC meets the price line, 3 the minimum of the firm's ATC. The
+  // number sits up and left of its marker, clear of the dotted guides.
+  const ptNum = (k, x, y, extra) => ({ text: String(k), x, y, xanchor: "right", yanchor: "bottom",
+    xshift: -5, yshift: 3, showarrow: false, font: { color: "#111", size: 13 }, ...extra });
+  // In the market panel four lines meet at this point (D, S, and the two
+  // dotted guides), so no spot touching the marker is clear. The number is
+  // set a little way down the vertical guide and to its right, where the
+  // wedge between the guide and the falling D is empty.
+  annotations.push(ptNum(1, Q, P, { xanchor: "left", yanchor: "top", xshift: 4, yshift: -16 }));
 
   // firm: MC, ATC, the price line, the two points, and the piece of MC between them
   // ATC ends at 16.5 so that its name, at the right end, stays left of the
@@ -1888,6 +1928,7 @@ function drawEntryExit() {
   traces.push(guide([qMin, qMin, null, 0, qMin], [0, pMin, null, pMin, pMin], firm));
   traces.push(guide([qStar, qStar], [0, P], firm));
   traces.push(point(qMin, pMin, firm), point(qStar, P, firm));
+  annotations.push(mfOnFirm(ptNum(2, qStar, P)), mfOnFirm(ptNum(3, qMin, pMin)));
   // axis numbers on the firm panel, pushed apart when two would print together
   const ys = [{ y: P, text: pfNum(P) }, { y: pMin, text: pfNum(pMin) }];
   const yShift = pfSpread(ys, pxY, 14);
@@ -2085,20 +2126,40 @@ function drawMonopolyProfit() {
                    name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))),
                    name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
+  // Numbered points, so a crossing can be named in class ("point 2"). All
+  // four sit on the vertical at Q*, so they are numbered top down by
+  // height rather than by the order the steps reveal them: neighboring
+  // numbers then never swap places, and MC's crossing with MR, which can
+  // sit within a whisker of AVC at a steep tilt, is not numbered next to
+  // a point it overlaps. The numbers are collected and assigned after the
+  // steps decide which points are on show.
+  const shown = [];
   const axisItems = [];
   if (n >= 1) {
     traces.push(guide([Q, Q], [0, n >= 2 ? P : mc]), point(Q, mc));
+    shown.push(mc);
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
   if (n >= 2) {
     traces.push(guide([0, Q], [P, P]), guide([0, Q], [atc, atc]), point(Q, P), point(Q, atc));
+    shown.push(P, atc);
     axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
   }
   if (n >= 3) {
     traces.push(guide([0, Q], [avc, avc]), point(Q, avc));
+    shown.push(avc);
     axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
   }
+  // highest point is 1; a number sits up and left of its marker, and is
+  // nudged further out when the point below it is within a few pixels
+  const ptYs = shown.slice().sort((a, b) => b - a);
+  ptYs.forEach((y, i) => {
+    const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
+    annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
+      xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
+      font: { color: "#111", size: 13 } });
+  });
   if (n >= 4) {
     traces.push(line([Q, Q], [atc, P], col, 5));
     annotations.push({ text: "Average profit = " + pfNum(P - atc), x: Q,
