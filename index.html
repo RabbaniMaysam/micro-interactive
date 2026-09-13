@@ -812,8 +812,8 @@ const EXP_ROWS = 5;
 const EXP_P_DEFAULT_MAX = 2000;
 
 const EXPERIMENTS = {
-  demand: { table: "table-demand", plot: "plot-demand" },
-  supply: { table: "table-supply", plot: "plot-supply" }
+  demand: { table: "table-demand", plot: "plot-demand", labelSide: "top right" },
+  supply: { table: "table-supply", plot: "plot-supply", labelSide: "top left" }
 };
 
 function buildExperimentTable(cfg) {
@@ -852,7 +852,9 @@ function readExperimentRows(cfg) {
     if (p.trim() === "" || q.trim() === "") continue;
     const pv = parseFloat(p.replace(/[$,\s]/g, "")), qv = parseFloat(q.replace(/[%,\s]/g, ""));
     if (!isFinite(pv) || !isFinite(qv)) continue;
-    rows.push({ p: pv, q: qv });
+    // n is the table's own row number, kept so the figure's point labels
+    // match the table even when an earlier row is left blank
+    rows.push({ p: pv, q: qv, n: i + 1 });
   }
   return rows;
 }
@@ -868,8 +870,13 @@ function drawExperiment(cfg) {
       mode: "lines+markers+text",
       line: { color: "#012169", width: 3 },
       marker: { color: "#111", size: 9 },
-      text: rows.map(r => "$" + fmtQty(r.p)),
-      textposition: "top right",
+      // the table's row number in front of the price, so a point in the
+      // figure can be named in class ("point 3") and found in the table
+      text: rows.map(r => r.n + ": $" + fmtQty(r.p)),
+      // labels go above the curve on the side the curve is leaving: to the
+      // right of a falling curve (demand), to the left of a rising one
+      // (supply), so the text never prints on the line itself
+      textposition: cfg.labelSide || "top right",
       textfont: { color: "#012169", size: 12 },
       cliponaxis: false,
       hovertemplate: "$%{y}, quantity %{x}<extra></extra>"
@@ -1082,8 +1089,19 @@ function drawEquilibrium() {
     qLabel("Q<sub>e</sub> = " + EQ_Q, EQ_Q, 1, GRAY)
   ]);
   if (gap !== 0) {
-    annotations.push({ text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle",
-      xshift: -11, textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } });
+    // the three points carry short names so they can be pointed at in
+    // conversation: e for the equilibrium, A for the left end of the
+    // surplus or shortage segment, B for the right end. At the
+    // equilibrium price A and B would coincide with e, so none is shown.
+    annotations.push(
+      { text: "e", x: EQ_Q, y: EQ_P, xanchor: "left", yanchor: "bottom", xshift: 4, yshift: 2,
+        showarrow: false, font: { color: GRAY, size: 15 } },
+      { text: "A", x: qLo, y: P, xanchor: "right", yanchor: "bottom", xshift: -4, yshift: 4,
+        showarrow: false, font: { color: "#111", size: 15 } },
+      { text: "B", x: qHi, y: P, xanchor: "left", yanchor: "bottom", xshift: 4, yshift: 4,
+        showarrow: false, font: { color: "#111", size: 15 } },
+      { text: "P = " + P, x: 0, y: P, xanchor: "center", yanchor: "middle",
+        xshift: -11, textangle: -90, showarrow: false, font: { color: "#012169", size: 13 } });
   }
   if (gap === 0) {
     // at the equilibrium the outer labels already say it all
