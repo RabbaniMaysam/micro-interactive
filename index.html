@@ -1452,10 +1452,13 @@ function drawLongRun() {
     annotations.push({ text: "q = " + (Math.round(qp * 10) / 10), x: qp, y: 0, yanchor: "top",
       yshift: -5, showarrow: false, font: { color: "#111", size: 13 } });
     if (on.length) {
+      // only the lowest crossing takes a marker: it is the one the exercise
+      // is about (the cheapest plant at this output), and a dot on every
+      // crossing crowded the figure. The other costs still read off the
+      // vertical axis through their dotted guides.
       const lowest = on.reduce((a, b) => b.y < a.y ? b : a);
-      on.forEach(o => traces.push({ x: [qp], y: [o.y], mode: "markers",
-        marker: { size: o === lowest ? 11 : 8, color: o === lowest ? "#012169" : "#111" },
-        hoverinfo: "skip" }));
+      traces.push({ x: [qp], y: [lowest.y], mode: "markers",
+        marker: { size: 11, color: "#012169" }, hoverinfo: "skip" });
       // costs on the vertical axis; two curves can cost almost the same at
       // q (near a tangency), so pfSpread pushes the labels apart around
       // their own middle rather than upward from the lowest, which would
