@@ -493,10 +493,15 @@
   <section class="tool-card">
     <h2>Short-run ATCs and the long-run ATC</h2>
     <div id="plot-lr" class="plot eq-plot"></div>
+    <div class="knob-row" id="row-lr-q" hidden>
+      <span class="knob-name">Quantity</span>
+      <input type="range" id="knob-lr-q" min="2" max="98" step="0.5" value="5" autocomplete="off">
+    </div>
     <div class="button-row">
       <button class="step-btn" id="btn-lr-minus" title="Remove the last ATC">&minus;</button>
       <button class="step-btn" id="btn-lr-plus" title="Add the next ATC">+</button>
       <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-q" autocomplete="off"> Pick a quantity</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-dissect" autocomplete="off"> Dissect</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-lrac" autocomplete="off"> Long-run ATC</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-only" autocomplete="off"> Long-run only</label>
@@ -1339,8 +1344,10 @@ function registerElasticityTool() {
 // ----------------------------------------------------------------------
 const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
 // r leaves room for "Long-run ATC" right of the envelope's end (Q = 98 of
-// 110) on a narrow page; at 30 the name was cut off at the div's edge
-const LR_MARGIN = { l: 30, r: 80, t: 20, b: 26 };
+// 110) on a narrow page; at 30 the name was cut off at the div's edge.
+// l fits a one-decimal cost ("30.5") from "Pick a quantity"; at 30 the
+// leading digit was clipped at the div's edge
+const LR_MARGIN = { l: 44, r: 80, t: 20, b: 26 };
 const LR_FRAME = { xMax: 110, yMax: 56 };
 const LR = q => 10 + 0.012 * (q - 50) ** 2;
 const LRd = q => 0.024 * (q - 50);
@@ -1363,6 +1370,9 @@ function drawLongRun() {
   const only = document.getElementById("toggle-lr-only").checked;
   const dissect = !only && document.getElementById("toggle-lr-dissect").checked;
   const lrac = only || document.getElementById("toggle-lr-lrac").checked;
+  // "Pick a quantity" puts its own dashed vertical and cost readings on the
+  // figure, so the automatic crossing guides stand down while it is on
+  const pick = !only && document.getElementById("toggle-lr-q").checked;
   const curves = []; if (!only) for (let i = 0; i < LR_STATE.n; i++) curves.push(lrCurve(i));
   const traces = [], annotations = dsAxisArrows("Q", "ATC", LR_FRAME);
   if (lrac) {
@@ -1399,7 +1409,7 @@ function drawLongRun() {
       xanchor: "center", yanchor: "top", yshift: -8, showarrow: false,
       font: { color: "#111", size: 12 } });
   });
-  if (!lrac && curves.length > 1) {
+  if (!lrac && !pick && curves.length > 1) {
     const gx = [], gy = [], px = [], py = [], costs = [];
     for (let i = 0; i + 1 < curves.length; i++) {
       const Qx = (LR_TANGENT(i) + LR_TANGENT(i + 1)) / 2, Cx = curves[i].f(Qx);
@@ -1426,6 +1436,45 @@ function drawLongRun() {
         font: { color: "#012169", size: 12 } });
     });
   }
+  // "Pick a quantity": a dashed vertical at the chosen q, a dot where it
+  // cuts each short-run ATC that covers q, and each cost on the vertical
+  // axis. The lowest of them is drawn larger and in the primary color,
+  // which is the point of the exercise: at this output the cheapest plant
+  // is the one whose curve sits lowest here, and the envelope passes
+  // through exactly that dot.
+  if (pick && curves.length) {
+    const qp = parseFloat(document.getElementById("knob-lr-q").value);
+    const on = curves.map((c, i) => ({ i, y: c.f(qp) }))
+      .filter(o => qp >= curves[o.i].x0 - 1e-9 && qp <= curves[o.i].x1 + 1e-9);
+    const yTop = on.length ? Math.max(...on.map(o => o.y)) : LR(qp);
+    traces.push({ x: [qp, qp], y: [0, Math.max(yTop, lrac ? LR(qp) : 0)], mode: "lines",
+                  line: { color: "#111", width: 1.5, dash: "dash" }, hoverinfo: "skip" });
+    annotations.push({ text: "q = " + (Math.round(qp * 10) / 10), x: qp, y: 0, yanchor: "top",
+      yshift: -5, showarrow: false, font: { color: "#111", size: 13 } });
+    if (on.length) {
+      const lowest = on.reduce((a, b) => b.y < a.y ? b : a);
+      on.forEach(o => traces.push({ x: [qp], y: [o.y], mode: "markers",
+        marker: { size: o === lowest ? 11 : 8, color: o === lowest ? "#012169" : "#111" },
+        hoverinfo: "skip" }));
+      // costs on the vertical axis; two curves can cost almost the same at
+      // q (near a tangency), so pfSpread pushes the labels apart around
+      // their own middle rather than upward from the lowest, which would
+      // drift the whole group off its dots
+      const div = document.getElementById("plot-lr");
+      const pxPerUnit = Math.max(1, div.clientHeight - LR_MARGIN.t - LR_MARGIN.b) / LR_FRAME.yMax;
+      const items = on.slice().sort((a, b) => a.y - b.y);
+      const shifts = pfSpread(items, pxPerUnit, 14);
+      items.forEach((o, k) => {
+        annotations.push({ text: String(Math.round(o.y * 10) / 10), x: 0, y: o.y,
+          xanchor: "right", yanchor: "middle", xshift: -4, yshift: shifts[k],
+          showarrow: false,
+          font: { color: o === lowest ? "#012169" : "#111", size: 12 } });
+        traces.push({ x: [0, qp], y: [o.y, o.y], mode: "lines",
+          line: { color: "#9ca3af", width: 1, dash: "dot" }, hoverinfo: "skip" });
+      });
+    }
+  }
+
   const layout = { margin: LR_MARGIN, ...dsAxes(LR_FRAME), showlegend: false, annotations };
   Plotly.react("plot-lr", traces, layout, { responsive: true, displayModeBar: false });
 }
@@ -1433,20 +1482,25 @@ function drawLongRun() {
 function registerLongRunTool() {
   const minus = document.getElementById("btn-lr-minus"), plus = document.getElementById("btn-lr-plus");
   const only = document.getElementById("toggle-lr-only");
+  const pick = document.getElementById("toggle-lr-q");
   const update = () => {
     // while "Long-run only" is on there is no short-run curve to add,
-    // remove, dissect, or envelope, so those four controls are disabled
+    // remove, dissect, envelope, or read a cost from, so those controls
+    // are disabled; the quantity knob is shown only while its own box is
+    // ticked, so the row does not take space when it is not in use
     const solo = only.checked;
     minus.disabled = solo || LR_STATE.n <= 1;
     plus.disabled = solo || LR_STATE.n >= LR_N;
-    ["toggle-lr-dissect", "toggle-lr-lrac"].forEach(id =>
+    ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-q"].forEach(id =>
       document.getElementById(id).disabled = solo);
+    document.getElementById("row-lr-q").hidden = solo || !pick.checked;
     drawLongRun();
   };
   plus.addEventListener("click", () => { if (LR_STATE.n < LR_N) { LR_STATE.n++; update(); } });
   minus.addEventListener("click", () => { if (LR_STATE.n > 1) { LR_STATE.n--; update(); } });
-  ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-only"].forEach(id =>
+  ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-only", "toggle-lr-q"].forEach(id =>
     document.getElementById(id).addEventListener("change", update));
+  document.getElementById("knob-lr-q").addEventListener("input", drawLongRun);
   TOOLS["long-run-atc"] = {
     redraw: update,
     reset: () => {
@@ -1454,6 +1508,8 @@ function registerLongRunTool() {
       document.getElementById("toggle-lr-dissect").checked = false;
       document.getElementById("toggle-lr-lrac").checked = false;
       only.checked = false;
+      pick.checked = false;
+      resetKnob("knob-lr-q");
     }
   };
 }
