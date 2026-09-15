@@ -604,6 +604,7 @@
       <label class="toggle"><input type="checkbox" id="toggle-mp-mc" checked autocomplete="off"> MC</label>
       <label class="toggle"><input type="checkbox" id="toggle-mp-mr" checked autocomplete="off"> MR</label>
       <label class="toggle"><input type="checkbox" id="toggle-mp-avc" checked autocomplete="off"> AVC</label>
+      <label class="toggle"><input type="checkbox" id="toggle-mp-dwl" autocomplete="off"> Deadweight loss</label>
     </div>
     <div class="remarks">
       <div id="mp-remark-profit"></div>
@@ -2111,6 +2112,10 @@ const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
 const MP_STEPS = 5, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
 const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 24;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
+// yellow for the deadweight loss, transparent enough that the profit
+// rectangle and the curves under it still show; the label needs a darker
+// shade of the same color to be readable on white
+const MP_DWL_FILL = "rgba(250, 204, 21, 0.55)", MP_DWL_TEXT = "#a16207";
 const MP_AVC = q => MP_A0 - PF_B * q + PF_C * q * q + MP_K / q;
 const MP_ATC = q => MP_AVC(q) + MP_FC / q;
 const MP_MC = q => MP_A0 - 2 * PF_B * q + 3 * PF_C * q * q;
@@ -2129,6 +2134,7 @@ function drawMonopolyProfit() {
   const showMC = document.getElementById("toggle-mp-mc").checked;
   const showMR = document.getElementById("toggle-mp-mr").checked;
   const showAVC = document.getElementById("toggle-mp-avc").checked;
+  const showDWL = document.getElementById("toggle-mp-dwl").checked;
   const D = q => A - b * q, MR = q => A - 2 * b * q;
   const Q = mpRoot(A, 2 * b), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
   const r1 = v => Math.round(v * 10) / 10;
@@ -2176,6 +2182,30 @@ function drawMonopolyProfit() {
       y: above ? Math.max(P, atc) : (P + atc) / 2, xanchor: "left",
       yanchor: above ? "bottom" : "middle", yshift: above ? 4 : 0, ...backed,
       showarrow: false, font: { color: col, size: 14 } });
+  }
+
+  // the deadweight loss, under the curves like the profit rectangle. Its
+  // three corners are the price at Q*, MC at Q*, and the competitive point
+  // where D meets MC. mpRoot solves MC = A - mQ, so the competitive
+  // quantity is the same root with demand's own slope b in place of MR's 2b.
+  // MC curves between the two quantities, so the lower edge follows the
+  // curve rather than a straight segment; the upper edge is D, which is
+  // straight, so its two ends are enough.
+  if (showDWL) {
+    const Qc = mpRoot(A, b);
+    const mcBack = pfSample(MP_MC, Q, Qc);
+    const xs = [Q, Qc, ...mcBack.xs.slice().reverse()];
+    const ys = [P, D(Qc), ...mcBack.ys.slice().reverse()];
+    traces.push({ x: xs, y: ys, mode: "lines", fill: "toself", fillcolor: MP_DWL_FILL,
+                  line: { width: 0 }, hoverinfo: "skip" });
+    // The triangle is narrow whenever demand is flat, and never wide enough
+    // to hold its own name, so the label sits above and right of the
+    // competitive corner, where D and MC have both passed and the space is
+    // clear, and an arrow reaches back to the middle of the shape.
+    annotations.push({ text: "Deadweight loss", x: (Q + Qc) / 2, y: (P + D(Qc) + MP_MC(Q)) / 3,
+      ax: 40, ay: -34, axref: "pixel", ayref: "pixel", xanchor: "left", yanchor: "bottom",
+      showarrow: true, arrowhead: 2, arrowsize: 0.9, arrowwidth: 1.2, arrowcolor: MP_DWL_TEXT,
+      ...backed, font: { color: MP_DWL_TEXT, size: 14 } });
   }
 
   // curves and their names
@@ -2264,14 +2294,18 @@ function registerMonopolyProfitTool() {
   plus.addEventListener("click", () => { if (MP_STATE.n < MP_STEPS) { MP_STATE.n++; update(); } });
   document.getElementById("knob-mp").addEventListener("input", drawMonopolyProfit);
   const curveIds = ["toggle-mp-mc", "toggle-mp-mr", "toggle-mp-avc"];
-  curveIds.forEach(id => document.getElementById(id).addEventListener("change", drawMonopolyProfit));
+  const dwl = document.getElementById("toggle-mp-dwl");
+  curveIds.concat("toggle-mp-dwl").forEach(id =>
+    document.getElementById(id).addEventListener("change", drawMonopolyProfit));
   TOOLS["monopoly-profit"] = {
     redraw: update,
     reset: () => {
       MP_STATE.n = 0;
       resetKnob("knob-mp");
-      // the three curves start on show, so reset checks them again
+      // the three curves start on show and the deadweight loss hidden, so
+      // reset restores each to its own starting state
       curveIds.forEach(id => document.getElementById(id).checked = true);
+      dwl.checked = false;
     }
   };
 }
