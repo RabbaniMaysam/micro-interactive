@@ -600,6 +600,10 @@
     <div class="button-row">
       <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
       <button class="step-btn" id="btn-mp-plus" title="Add the next step">+</button>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="toggle-mp-mc" checked autocomplete="off"> MC</label>
+      <label class="toggle"><input type="checkbox" id="toggle-mp-mr" checked autocomplete="off"> MR</label>
+      <label class="toggle"><input type="checkbox" id="toggle-mp-avc" checked autocomplete="off"> AVC</label>
     </div>
     <div class="remarks">
       <div id="mp-remark-profit"></div>
@@ -2119,6 +2123,12 @@ const mpRoot = (A, m) => {
 function drawMonopolyProfit() {
   const b = parseFloat(document.getElementById("knob-mp").value), A = MP_A;
   const n = MP_STATE.n;
+  // MC, MR and AVC can each be hidden. Q* still comes from MC = MR, so the
+  // rest of the figure is unchanged; a hidden curve only drops its own
+  // line, its point on the vertical at Q*, and anything read off it.
+  const showMC = document.getElementById("toggle-mp-mc").checked;
+  const showMR = document.getElementById("toggle-mp-mr").checked;
+  const showAVC = document.getElementById("toggle-mp-avc").checked;
   const D = q => A - b * q, MR = q => A - 2 * b * q;
   const Q = mpRoot(A, 2 * b), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
   const r1 = v => Math.round(v * 10) / 10;
@@ -2172,18 +2182,20 @@ function drawMonopolyProfit() {
   const mcS = pfSample(MP_MC, MP_COST_START, MP_MC_END), atcS = pfSample(MP_ATC, MP_COST_START, MP_COST_END),
         avcS = pfSample(MP_AVC, MP_COST_START, MP_COST_END);
   const dEnd = Math.min(MP_END, A / b), mrEnd = Math.min(MP_END, A / (2 * b));
-  traces.push(line(mcS.xs, mcS.ys, PF_COLORS.mc, 3), line(atcS.xs, atcS.ys, PF_COLORS.atc, 3),
-              line(avcS.xs, avcS.ys, PF_COLORS.avc, 3),
-              line([0, dEnd], [A, D(dEnd)], "#111", 3), line([0, mrEnd], [A, MR(mrEnd)], "#2563eb", 3));
+  if (showMC) traces.push(line(mcS.xs, mcS.ys, PF_COLORS.mc, 3));
+  traces.push(line(atcS.xs, atcS.ys, PF_COLORS.atc, 3));
+  if (showAVC) traces.push(line(avcS.xs, avcS.ys, PF_COLORS.avc, 3));
+  traces.push(line([0, dEnd], [A, D(dEnd)], "#111", 3));
+  if (showMR) traces.push(line([0, mrEnd], [A, MR(mrEnd)], "#2563eb", 3));
   // a line's name goes below and right of its end when the end is on or
   // near the Q axis (MR ends left of D, and both right of Q*, so the names
   // stay clear of each other and of "Q* = n")
   const onAxis = y => y < 1 ? { yanchor: "top", xshift: 4, yshift: -4 } : {};
-  annotations.push(name("MC", MP_MC_END, MP_MC(MP_MC_END), PF_COLORS.mc),
-                   nameClear("ATC", MP_COST_END, MP_ATC(MP_COST_END), PF_COLORS.atc),
-                   nameClear("AVC", MP_COST_END, MP_AVC(MP_COST_END), PF_COLORS.avc),
-                   name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))),
-                   name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
+  if (showMC) annotations.push(name("MC", MP_MC_END, MP_MC(MP_MC_END), PF_COLORS.mc));
+  annotations.push(nameClear("ATC", MP_COST_END, MP_ATC(MP_COST_END), PF_COLORS.atc));
+  if (showAVC) annotations.push(nameClear("AVC", MP_COST_END, MP_AVC(MP_COST_END), PF_COLORS.avc));
+  annotations.push(name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))));
+  if (showMR) annotations.push(name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
   // Numbered points, so a crossing can be named in class ("point 2"). All
   // four sit on the vertical at Q*, so they are numbered top down by
@@ -2195,8 +2207,10 @@ function drawMonopolyProfit() {
   const shown = [];
   const axisItems = [];
   if (n >= 1) {
-    traces.push(guide([Q, Q], [0, n >= 2 ? P : mc]), point(Q, mc));
-    shown.push(mc);
+    traces.push(guide([Q, Q], [0, n >= 2 ? P : mc]));
+    // the marker at height mc is where MC meets MR, so it goes when either
+    // of the two curves is hidden
+    if (showMC && showMR) { traces.push(point(Q, mc)); shown.push(mc); }
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
@@ -2205,7 +2219,7 @@ function drawMonopolyProfit() {
     shown.push(P, atc);
     axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
   }
-  if (n >= 3) {
+  if (n >= 3 && showAVC) {
     traces.push(guide([0, Q], [avc, avc]), point(Q, avc));
     shown.push(avc);
     axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
@@ -2233,7 +2247,7 @@ function drawMonopolyProfit() {
   document.getElementById("mp-remark-profit").textContent = n < 2 ? ""
     : P1 > atc1 ? "Profit is positive because P > ATC"
     : P1 < atc1 ? "Profit is negative because P < ATC" : "Profit is zero because P = ATC";
-  document.getElementById("mp-remark-shutdown").textContent = n < 3 ? ""
+  document.getElementById("mp-remark-shutdown").textContent = n < 3 || !showAVC ? ""
     : P1 >= avc1 ? "Should keep producing because P ≥ AVC" : "Should shut down because P < AVC";
 
   const layout = { margin: MP_MARGIN, ...dsAxes(MP_FRAME), showlegend: false, annotations };
@@ -2249,7 +2263,17 @@ function registerMonopolyProfitTool() {
   minus.addEventListener("click", () => { if (MP_STATE.n > 0) { MP_STATE.n--; update(); } });
   plus.addEventListener("click", () => { if (MP_STATE.n < MP_STEPS) { MP_STATE.n++; update(); } });
   document.getElementById("knob-mp").addEventListener("input", drawMonopolyProfit);
-  TOOLS["monopoly-profit"] = { redraw: update, reset: () => { MP_STATE.n = 0; resetKnob("knob-mp"); } };
+  const curveIds = ["toggle-mp-mc", "toggle-mp-mr", "toggle-mp-avc"];
+  curveIds.forEach(id => document.getElementById(id).addEventListener("change", drawMonopolyProfit));
+  TOOLS["monopoly-profit"] = {
+    redraw: update,
+    reset: () => {
+      MP_STATE.n = 0;
+      resetKnob("knob-mp");
+      // the three curves start on show, so reset checks them again
+      curveIds.forEach(id => document.getElementById(id).checked = true);
+    }
+  };
 }
 
 function registerCurveTool(id, c) {
