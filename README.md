@@ -54,8 +54,10 @@ function; register it in the `DOMContentLoaded` handler with
 (chapters are plain labels, tools are links) and, for a new chapter, a
 link in the top nav.
 
-The header carries a byline, "By: Maysam Rabbani", under the site title
-(added September 9, 2026). The two-panel tools title their panels with the
+The header carries a byline, "By: Maysam Rabbani, Department of Economics,
+Montclair State University", under the site title (added September 9, 2026;
+affiliation added September 28, 2026). The sidebar is 169px wide with 0.78em
+text (narrowed from 260px and 0.85em on September 28, 2026). The two-panel tools title their panels with the
 bare words "Movement along" and "Shift".
 
 House style (the user's, September 8, 2026): no prose on the page beyond
