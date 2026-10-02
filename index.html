@@ -234,6 +234,7 @@
     padding: 0.25em 0.7em; cursor: pointer; user-select: none; white-space: nowrap;
   }
   label.toggle:has(input:checked) { background: var(--primary); color: white; }
+  label.toggle:has(input:disabled) { opacity: 0.35; cursor: default; }
   label.toggle input { accent-color: var(--secondary); margin: 0; }
   /* Single-figure knob tool: a taller plot, and the knob to match */
   .eq-plot { height: 360px; flex: 1 1 auto; min-width: 0; }
@@ -257,6 +258,7 @@
   .step-btn:disabled { opacity: 0.35; cursor: default; }
   /* Named horizontal knobs under a single figure */
   .knob-row { display: flex; align-items: center; gap: 0.6em; padding: 0.15em 30px 0 24px; }
+  .knob-row[hidden] { display: none; }   /* display: flex would override the hidden attribute */
   .knob-row .knob-name { font-size: 0.85em; font-weight: 600; color: var(--primary); width: 4em; }
   .knob-row input[type=range] { flex: 1 1 auto; accent-color: var(--primary); margin: 0; }
   /* the knob's original (center) position, marked by a tick behind the thumb */
@@ -505,6 +507,13 @@
       <label class="toggle"><input type="checkbox" id="toggle-lr-dissect" autocomplete="off"> Dissect</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-lrac" autocomplete="off"> Long-run ATC</label>
       <label class="toggle"><input type="checkbox" id="toggle-lr-only" autocomplete="off"> Long-run only</label>
+    </div>
+    <div class="button-row">
+      <label class="toggle"><input type="checkbox" id="toggle-lr-flat" autocomplete="off"> Flat bottom</label>
+      <span class="spacer"></span>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-eos" autocomplete="off"> Economies of scale</label>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-crs" autocomplete="off"> Constant returns to scale</label>
+      <label class="toggle"><input type="checkbox" id="toggle-lr-dos" autocomplete="off"> Diseconomies of scale</label>
     </div>
   </section>
 </div>
@@ -1342,10 +1351,20 @@ function registerElasticityTool() {
 // elsewhere (slide 46); "Long-run ATC" draws the thick envelope (slide 47).
 // While the envelope is hidden, each crossing of consecutive curves (the
 // output at which the two plants cost the same) is marked, with its Q on
-// the quantity axis and its cost on the vertical axis. Equal curvatures put
-// the crossing midway between the two tangency points, so Q = 11, 17, ...,
-// 95. Costs on the axis are rounded to integers; identical ones (the
-// symmetric pairs) print once, and labels closer than 13px are spread apart.
+// the quantity axis and its cost on the vertical axis. Equal curvatures make
+// the difference of two curves linear in Q, so the crossing is solved
+// exactly; on the U it is midway between the tangency points, Q = 11, 17,
+// ..., 95. Costs on the axis are rounded to integers; those that round alike
+// (the symmetric pairs, the flat part's crossings) print once, and labels
+// closer than 13px are spread apart.
+// "Flat bottom" (slide 49) morphs the envelope over LR_MORPH_MS from the U
+// to a curve that falls to Q = LR_Q1, is flat to LR_Q2, and rises after:
+// LR is the blend (1 - t) U + t F with t eased from 0 to 1, and the short-run
+// family, being defined from LR and its slope, moves along. Both shapes have
+// the same end points, so the name stays put. The three region boxes, live
+// only while the bottom is flat, shade economies of scale (0 to Q1),
+// constant returns (Q1 to Q2), and diseconomies (Q2 to the end), each with a
+// bracket and its name above the curve and Q1 or Q2 on the quantity axis.
 // ----------------------------------------------------------------------
 const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
 // r leaves room for "Long-run ATC" right of the envelope's end (Q = 98 of
@@ -1354,11 +1373,28 @@ const LR_N = 15, LR_W = 9, LR_A = 0.15, LR_STEP = 0.25;
 // leading digit was clipped at the div's edge
 const LR_MARGIN = { l: 44, r: 80, t: 20, b: 26 };
 const LR_FRAME = { xMax: 110, yMax: 56 };
-const LR = q => 10 + 0.012 * (q - 50) ** 2;
-const LRd = q => 0.024 * (q - 50);
+const LR_Q0 = 2, LR_Q3 = 98;                  // where the envelope starts and ends
+const LR_Q1 = 30, LR_Q2 = 70;                 // the flat part of the flat-bottomed shape
+const LR_U = q => 10 + 0.012 * (q - 50) ** 2;
+const LR_Ud = q => 0.024 * (q - 50);
+// the sides of the flat shape are quadratic in the distance to the flat
+// part, with the curvature that puts the ends at the U's height
+const LR_K = (LR_U(LR_Q0) - 10) / (LR_Q1 - LR_Q0) ** 2;
+const LR_F = q => 10 + LR_K * (Math.max(0, LR_Q1 - q) ** 2 + Math.max(0, q - LR_Q2) ** 2);
+const LR_Fd = q => 2 * LR_K * (Math.max(0, q - LR_Q2) - Math.max(0, LR_Q1 - q));
+const LR = q => (1 - LR_STATE.t) * LR_U(q) + LR_STATE.t * LR_F(q);
+const LRd = q => (1 - LR_STATE.t) * LR_Ud(q) + LR_STATE.t * LR_Fd(q);
 const LR_TANGENT = i => 8 + 6 * i;           // i = 0 .. LR_N - 1
-const LR_STATE = { n: 1 };
+// t: how far the envelope has morphed toward the flat shape (0 = the U);
+// anim: the running morph, if any
+const LR_STATE = { n: 1, t: 0, anim: null };
+const LR_MORPH_MS = 1500;
 const LR_BLUE = "#2563eb", LR_RED = "#dc2626";
+const LR_REGIONS = [
+  { toggle: "toggle-lr-eos", x0: 0, x1: LR_Q1, fill: "rgba(37, 99, 235, 0.12)", name: "Economies<br>of scale" },
+  { toggle: "toggle-lr-crs", x0: LR_Q1, x1: LR_Q2, fill: "rgba(250, 204, 21, 0.35)", name: "Constant returns<br>to scale" },
+  { toggle: "toggle-lr-dos", x0: LR_Q2, x1: LR_Q3, fill: "rgba(220, 38, 38, 0.12)", name: "Diseconomies<br>of scale" }
+];
 
 function lrCurve(i) {
   const q = LR_TANGENT(i);
@@ -1417,13 +1453,18 @@ function drawLongRun() {
   if (!lrac && !pick && curves.length > 1) {
     const gx = [], gy = [], px = [], py = [], costs = [];
     for (let i = 0; i + 1 < curves.length; i++) {
-      const Qx = (LR_TANGENT(i) + LR_TANGENT(i + 1)) / 2, Cx = curves[i].f(Qx);
+      // the two curves share the curvature, so their difference is linear:
+      // evaluate it at the two tangency points and solve for its zero
+      const qa = LR_TANGENT(i), qb = LR_TANGENT(i + 1);
+      const da = curves[i].f(qa) - curves[i + 1].f(qa), db = curves[i].f(qb) - curves[i + 1].f(qb);
+      const Qx = qa - da * (qb - qa) / (db - da), Cx = curves[i].f(Qx);
       gx.push(0, Qx, Qx, null); gy.push(Cx, Cx, 0, null);
       px.push(Qx); py.push(Cx);
-      annotations.push({ text: String(Qx), x: Qx, y: 0, yanchor: "top", yshift: -5,
+      annotations.push({ text: String(Math.round(Qx * 10) / 10), x: Qx, y: 0, yanchor: "top", yshift: -5,
         showarrow: false, font: { color: "#012169", size: 12 } });
-      const shown = Math.round(Cx);
-      if (!costs.some(c => Math.abs(c.y - Cx) < 1e-6)) costs.push({ y: Cx, text: String(shown) });
+      // one label per printed integer: costs that round alike print once
+      const shown = String(Math.round(Cx));
+      if (!costs.some(c => c.text === shown)) costs.push({ y: Cx, text: shown });
     }
     traces.push({ x: gx, y: gy, mode: "lines", line: { color: "#6b7280", width: 1.2, dash: "dot" },
                   connectgaps: false, hoverinfo: "skip" });
@@ -1483,14 +1524,53 @@ function drawLongRun() {
     }
   }
 
-  const layout = { margin: LR_MARGIN, ...dsAxes(LR_FRAME), showlegend: false, annotations };
+  // the regions: a shaded band under everything, a bracket with the name
+  // above the curve, and the band's edges on the quantity axis. They wait
+  // for the morph to finish (t = 1), so a box ticked during it takes effect
+  // at the end.
+  const shapes = [];
+  if (LR_STATE.t >= 1 && document.getElementById("toggle-lr-flat").checked) {
+    const marks = new Set();
+    LR_REGIONS.forEach(r => {
+      if (!document.getElementById(r.toggle).checked) return;
+      shapes.push({ type: "rect", x0: r.x0, x1: r.x1, y0: 0, y1: LR_FRAME.yMax, fillcolor: r.fill,
+                    line: { width: 0 }, layer: "below" });
+      const a = Math.max(r.x0, 1), b = r.x1, yb = 44, tick = 2;
+      traces.push({ x: [a, a, b, b], y: [yb - tick, yb, yb, yb - tick], mode: "lines",
+                    line: { color: "#111", width: 1.2 }, hoverinfo: "skip" });
+      annotations.push({ text: r.name, x: (a + b) / 2, y: yb, xanchor: "center", yanchor: "bottom",
+        yshift: 3, showarrow: false, font: { color: "#111", size: 13 } });
+      if (r.x0 > 0) marks.add(r.x0);
+      if (r.x1 < LR_Q3) marks.add(r.x1);
+    });
+    marks.forEach(q => annotations.push({ text: "Q<sub>" + (q === LR_Q1 ? 1 : 2) + "</sub>", x: q, y: 0,
+      yanchor: "top", yshift: -5, showarrow: false, font: { color: "#111", size: 13 } }));
+  }
+
+  const layout = { margin: LR_MARGIN, ...dsAxes(LR_FRAME), showlegend: false, annotations, shapes };
   Plotly.react("plot-lr", traces, layout, { responsive: true, displayModeBar: false });
+}
+
+// "Flat bottom": ease t toward 1 (ticked) or 0 (unticked) over LR_MORPH_MS,
+// redrawing each frame; a change of mind mid-morph starts from where t is
+function lrMorph(toFlat) {
+  if (LR_STATE.anim) cancelAnimationFrame(LR_STATE.anim);
+  const from = LR_STATE.t, to = toFlat ? 1 : 0, start = performance.now();
+  const ease = s => s < 0.5 ? 4 * s ** 3 : 1 - (-2 * s + 2) ** 3 / 2;
+  const step = now => {
+    const s = Math.min(1, (now - start) / LR_MORPH_MS);
+    LR_STATE.t = from + (to - from) * ease(s);
+    drawLongRun();
+    LR_STATE.anim = s < 1 ? requestAnimationFrame(step) : null;
+  };
+  LR_STATE.anim = requestAnimationFrame(step);
 }
 
 function registerLongRunTool() {
   const minus = document.getElementById("btn-lr-minus"), plus = document.getElementById("btn-lr-plus");
   const only = document.getElementById("toggle-lr-only");
   const pick = document.getElementById("toggle-lr-q");
+  const flat = document.getElementById("toggle-lr-flat");
   const update = () => {
     // while "Long-run only" is on there is no short-run curve to add,
     // remove, dissect, envelope, or read a cost from, so those controls
@@ -1502,12 +1582,16 @@ function registerLongRunTool() {
     ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-q"].forEach(id =>
       document.getElementById(id).disabled = solo);
     document.getElementById("row-lr-q").hidden = solo || !pick.checked;
+    // the regions exist only on the flat-bottomed curve
+    LR_REGIONS.forEach(r => document.getElementById(r.toggle).disabled = !flat.checked);
     drawLongRun();
   };
   plus.addEventListener("click", () => { if (LR_STATE.n < LR_N) { LR_STATE.n++; update(); } });
   minus.addEventListener("click", () => { if (LR_STATE.n > 1) { LR_STATE.n--; update(); } });
   ["toggle-lr-dissect", "toggle-lr-lrac", "toggle-lr-only", "toggle-lr-q"].forEach(id =>
     document.getElementById(id).addEventListener("change", update));
+  LR_REGIONS.forEach(r => document.getElementById(r.toggle).addEventListener("change", update));
+  flat.addEventListener("change", () => { update(); lrMorph(flat.checked); });
   document.getElementById("knob-lr-q").addEventListener("input", drawLongRun);
   TOOLS["long-run-atc"] = {
     redraw: update,
@@ -1518,6 +1602,10 @@ function registerLongRunTool() {
       only.checked = false;
       pick.checked = false;
       resetKnob("knob-lr-q");
+      if (LR_STATE.anim) cancelAnimationFrame(LR_STATE.anim);
+      LR_STATE.anim = null; LR_STATE.t = 0;
+      flat.checked = false;
+      LR_REGIONS.forEach(r => { document.getElementById(r.toggle).checked = false; });
     }
   };
 }
