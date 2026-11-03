@@ -1788,17 +1788,17 @@ function registerMarketFirmTool() {
 // FC chosen so that ATC has its minimum 8 at q = 12 (MC crosses both
 // minima, so the knob at 4.0 and 8.0 reads P = AVC and P = ATC exactly).
 // MC is dashed below the shutdown point, as on the slide.
-// "-" and "+" walk through the analysis in eight steps (nothing at 0), one
+// "-" and "+" walk through the analysis in nine steps (nothing at 0), one
 // item per press so that each can be a question to the class:
-//   1 the dashed vertical at Q*, alone
-//   2 Q* on the axis
-//   3 the numbered points where the vertical crosses the curves (1 the
-//     highest), unnamed
-//   4 P at Q* on the axis
-//   5 ATC at Q* on the axis, remark on the sign of profit
-//   6 AVC at Q* on the axis, remark on producing or shutting down
-//   7 average profit as a thick vertical segment from ATC to P at Q*
-//   8 total profit as the shaded rectangle, green for profit, red for loss
+//   1 point 1, the highest crossing on the vertical at Q*, unnamed
+//   2 the dashed vertical at Q*
+//   3 Q* on the axis
+//   4 points 2 and 3, the other crossings on the vertical, unnamed
+//   5 P at Q* on the axis
+//   6 ATC at Q* on the axis, remark on the sign of profit
+//   7 AVC at Q* on the axis, remark on producing or shutting down
+//   8 average profit as a thick vertical segment from ATC to P at Q*
+//   9 total profit as the shaded rectangle, green for profit, red for loss
 // Remarks compare values rounded to one decimal, the same rounding as the
 // numbers printed, so a remark never contradicts the figure.
 // ----------------------------------------------------------------------
@@ -1810,7 +1810,7 @@ const PF_QSTAR = P => (2 * PF_B + Math.sqrt(4 * PF_B * PF_B - 12 * PF_C * (PF_A 
 const PF_SHUT_Q = 10;                       // AVC minimum, where the dashed MC ends
 const PF_FRAME = { xMax: 22, yMax: 18, xPad: 0.6, yPad: 0.4 };
 const PF_MARGIN = { l: 76, r: 80, t: 20, b: 30 };   // l fits "ATC = 12.6", r "P = D = MR = AR"
-const PF_MR_END = 19.5, PF_STEPS = 8;
+const PF_MR_END = 19.5, PF_STEPS = 9;
 const PF_STATE = { n: 0 };
 const PF_COLORS = { mc: "#0d9488", atc: "#b91c1c", avc: "#b45309", gain: "#15803d", loss: "#b91c1c",
                     gainFill: "rgba(22, 163, 74, 0.25)", lossFill: "rgba(220, 38, 38, 0.25)" };
@@ -1862,8 +1862,8 @@ function drawProfit() {
   const name = (text, x, y, color) => ({ text, x, y, xanchor: "left", yanchor: "middle", xshift: 5,
     showarrow: false, font: { color, size: 14 } });
 
-  // step 8: the total profit (or loss) rectangle, under everything else
-  if (n >= 8) {
+  // step 9: the total profit (or loss) rectangle, under everything else
+  if (n >= 9) {
     traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
                   fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill,
                   line: { width: 0 }, hoverinfo: "skip" });
@@ -1889,44 +1889,43 @@ function drawProfit() {
   traces.push(line([0, PF_MR_END], [P, P], "#111", 3));
   annotations.push(name("P = D = MR = AR", PF_MR_END, P, "#111"));
 
-  // Step 1: the dashed vertical at Q* up to the highest crossing, alone.
-  // Step 3: the three numbered points where it crosses the curves (MC and
-  // the demand line cross it at the same point, P), unnamed so that the
-  // class can be asked which point is which. Numbered top down by height:
-  // 1 is the highest. Numbering by height rather than by reveal order keeps
-  // neighboring numbers from swapping places when the price knob moves P
-  // below ATC.
+  // The three numbered points where the vertical at Q* crosses the curves
+  // (MC and the demand line cross it at the same point, P), unnamed so that
+  // the class can be asked which point is which. Numbered top down by
+  // height: 1 is the highest. Numbering by height rather than by reveal
+  // order keeps neighboring numbers from swapping places when the price
+  // knob moves P below ATC. Point 1 is step 1; points 2 and 3 are step 4;
+  // the dashed vertical (step 2) runs up to point 1.
   const axisItems = [];   // labels on the vertical axis, spread apart if needed
-  if (n >= 1) traces.push(guide([Q, Q], [0, Math.max(P, atc, avc)]));
-  if (n >= 2) {
+  const ptYs = [P, atc, avc].sort((a, b) => b - a);
+  if (n >= 2) traces.push(guide([Q, Q], [0, ptYs[0]]));
+  if (n >= 3) {
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
-  if (n >= 3) {
-    traces.push(point(Q, P), point(Q, atc), point(Q, avc));
-    // a number sits up and left of its marker, nudged further out when the
-    // point below it is within a few pixels
-    const ptYs = [P, atc, avc].sort((a, b) => b - a);
-    ptYs.forEach((y, i) => {
-      const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
-      annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
-        xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
-        font: { color: "#111", size: 13 } });
-    });
-  }
-  if (n >= 4) {
+  // a number sits up and left of its marker, nudged further out when the
+  // point below it is within a few pixels
+  ptYs.forEach((y, i) => {
+    if (n < (i === 0 ? 1 : 4)) return;
+    traces.push(point(Q, y));
+    const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
+    annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
+      xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
+      font: { color: "#111", size: 13 } });
+  });
+  if (n >= 5) {
     traces.push(guide([0, Q], [P, P]));
     axisItems.push({ y: P, text: "P = " + pfNum(P) });
   }
-  if (n >= 5) {
+  if (n >= 6) {
     traces.push(guide([0, Q], [atc, atc]));
     axisItems.push({ y: atc, text: "ATC = " + pfNum(atc) });
   }
-  if (n >= 6) {
+  if (n >= 7) {
     traces.push(guide([0, Q], [avc, avc]));
     axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
   }
-  if (n >= 7) {
+  if (n >= 8) {
     traces.push(line([Q, Q], [atc, P], col, 5));
     // right of the segment at its middle (below the line when the segment is
     // too short); a white backing masks the curve that passes there (MC in a
@@ -1943,9 +1942,9 @@ function drawProfit() {
     font: { color: "#012169", size: 13 } }));
 
   // remarks under the figure (the user's wording)
-  const profitText = n < 5 ? "" : P1 > atc1 ? "Profit is positive because P > ATC"
+  const profitText = n < 6 ? "" : P1 > atc1 ? "Profit is positive because P > ATC"
     : P1 < atc1 ? "Profit is negative because P < ATC" : "Profit is zero because P = ATC";
-  const shutText = n < 6 ? "" : P1 >= avc1 ? "Should keep producing because P ≥ AVC"
+  const shutText = n < 7 ? "" : P1 >= avc1 ? "Should keep producing because P ≥ AVC"
     : "Should shut down because P < AVC";
   document.getElementById("pf-remark-profit").textContent = profitText;
   document.getElementById("pf-remark-shutdown").textContent = shutText;
@@ -1982,14 +1981,14 @@ function registerProfitTool() {
 // neutrally so as not to give the answer away; picking one puts the knob
 // there. Firm: the
 // MC and ATC of the profit tool (ATC minimum 8 at q = 12, on MC), the line
-// D = MR = P at the market price, the point MC = P, and the ATC minimum.
+// P = D = MR = AR at the market price, the point MC = P, and the ATC minimum.
 // The piece of MC between those two points is thick, green when P is
 // above the minimum (profit, entry to come) and red below it (loss,
 // exit); it shrinks to nothing as the knob brings P to 8. Once the knob
 // leaves the start, the start's S and firm line stay as gray ghosts and an
 // arrow, midway between the two prices, shows the direction of the shift.
 // ----------------------------------------------------------------------
-const EE_MARGIN = { l: 40, r: 60, t: 34, b: 26 };
+const EE_MARGIN = { l: 40, r: 90, t: 34, b: 26 };   // r fits "P = D = MR = AR"
 const EE_MKT = { xMax: 110, yMax: 18, xPad: 3, yPad: 0.4 };
 const EE_FIRM = { xMax: 22, yMax: 18, xPad: 0.6, yPad: 0.4 };
 // The S lines run from 14 units left of their crossing up to P = 17 (the
@@ -2059,8 +2058,9 @@ function drawEntryExit() {
   annotations.push(num(pfNum(P), 0, P, true), num("Q", Q, 0, false));
   // Numbered points, so a crossing can be named in class ("point 2"):
   // 1 is the market crossing of D and S, 2 the firm's chosen quantity
-  // where MC meets the price line, 3 the minimum of the firm's ATC. The
-  // number sits up and left of its marker, clear of the dotted guides.
+  // where MC meets the price line, 3 the minimum of the firm's ATC. A
+  // number sits up and left of its marker, clear of the dotted guides;
+  // 2 sits down and left instead (the user's call, November 3, 2026).
   const ptNum = (k, x, y, extra) => ({ text: String(k), x, y, xanchor: "right", yanchor: "bottom",
     xshift: -5, yshift: 3, showarrow: false, font: { color: "#111", size: 13 }, ...extra });
   // In the market panel four lines meet at this point (D, S, and the two
@@ -2071,7 +2071,8 @@ function drawEntryExit() {
 
   // firm: MC, ATC, the price line, the two points, and the piece of MC between them
   // ATC ends at 16.5 so that its name, at the right end, stays left of the
-  // "D = MR = P" label whatever the price
+  // "P = D = MR = AR" label (which prints into the right margin) whatever
+  // the price
   const mc = pfSample(PF_MC, 5, 15), atc = pfSample(PF_ATC, 5.5, 16.5);
   traces.push(line(mc.xs, mc.ys, PF_COLORS.mc, 3, firm), line(atc.xs, atc.ys, PF_COLORS.atc, 3, firm));
   // the name sits under the right end of ATC (the curve rises away from
@@ -2081,7 +2082,7 @@ function drawEntryExit() {
                    name("ATC", 16.5, yAtc, PF_COLORS.atc, mfOnFirm({
                      yanchor: lineBelow ? "bottom" : "top", yshift: lineBelow ? 4 : -4 })));
   traces.push(line([0, EE_LINE_END], [P, P], "#111", 3, firm));
-  annotations.push(name("D = MR = P", EE_LINE_END, P, "#111", mfOnFirm({})));
+  annotations.push(name("P = D = MR = AR", EE_LINE_END, P, "#111", mfOnFirm({})));
   // the thick piece of MC between the two points, only while "Highlight" is on
   if (!even && document.getElementById("toggle-ee-arc").checked) {
     const arc = pfSample(PF_MC, Math.min(qStar, qMin), Math.max(qStar, qMin), 0.02);
@@ -2090,7 +2091,8 @@ function drawEntryExit() {
   traces.push(guide([qMin, qMin, null, 0, qMin], [0, pMin, null, pMin, pMin], firm));
   traces.push(guide([qStar, qStar], [0, P], firm));
   traces.push(point(qMin, pMin, firm), point(qStar, P, firm));
-  annotations.push(mfOnFirm(ptNum(2, qStar, P)), mfOnFirm(ptNum(3, qMin, pMin)));
+  annotations.push(mfOnFirm(ptNum(2, qStar, P, { yanchor: "top", yshift: -3 })),
+                   mfOnFirm(ptNum(3, qMin, pMin)));
   // axis numbers on the firm panel, pushed apart when two would print together
   const ys = [{ y: P, text: pfNum(P) }, { y: pMin, text: pfNum(pMin) }];
   const yShift = pfSpread(ys, pxY, 14);
@@ -2195,20 +2197,23 @@ function registerDemandMRTool() {
 // at q = 12.3, both on MC; profit for b under 1.0, a loss up to 1.5, and
 // shut down beyond (Q* from 14.3 at 0.15 to 4.0 at 2, the start of the
 // drawn cost curves). "-" and "+" walk through the analysis (nothing at 0,
-// curves only):
-//   1 Q* where MR = MC (point 1), on the axis
-//   2 P on D and ATC at Q* (points 3 and 2), both on the axis, remark on
-//     the sign of profit
-//   3 AVC at Q* on the axis, remark on producing or shutting down
-//   4 average profit as a thick segment from ATC to P at Q*
-//   5 total profit as the shaded rectangle
+// curves only), one item per press so that each can be a question:
+//   1 point 1, the highest of the crossings on the vertical at Q*, unnamed
+//   2 the dashed vertical at Q* up to point 1
+//   3 Q* on the axis
+//   4 the other numbered crossings (P on D, ATC, AVC, MR = MC), unnamed
+//   5 P at Q* on the axis
+//   6 ATC at Q* on the axis, remark on the sign of profit
+//   7 AVC at Q* on the axis, remark on producing or shutting down
+//   8 average profit as a thick segment from ATC to P at Q*
+//   9 total profit as the shaded rectangle
 // Remarks compare one-decimal values, as printed. Curve names at the
 // right ends of ATC and AVC move above or below the end when the average
 // profit label would print on them.
 // ----------------------------------------------------------------------
 const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
-const MP_STEPS = 5, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
+const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
 const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 24;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
 // yellow for the deadweight loss, transparent enough that the profit
 // rectangle and the curves under it still show; the label needs a darker
@@ -2243,11 +2248,11 @@ function drawMonopolyProfit() {
   const pxPerUnit = (plotEl.clientHeight - MP_MARGIN.t - MP_MARGIN.b) / MP_FRAME.yMax;
   const pxPerUnitX = (plotEl.clientWidth - MP_MARGIN.l - MP_MARGIN.r) / MP_FRAME.xMax;
   const thin = Math.abs(P - atc) * pxPerUnit < 22;
-  // pixel box of the average profit label (step 4), used to keep the curve
+  // pixel box of the average profit label (step 8), used to keep the curve
   // names clear of it: right of Q*, at the segment's middle, or below the
   // segment when it is too short
   const avgY = thin ? Math.min(P, atc) * pxPerUnit - 6 - 9 : (P + atc) / 2 * pxPerUnit;
-  const avgBox = n >= 4 ? { x0: Q * pxPerUnitX + 8, x1: Q * pxPerUnitX + 160, y0: avgY - 9, y1: avgY + 9 } : null;
+  const avgBox = n >= 8 ? { x0: Q * pxPerUnitX + 8, x1: Q * pxPerUnitX + 160, y0: avgY - 9, y1: avgY + 9 } : null;
   const hits = b => avgBox && b.x0 < avgBox.x1 && b.x1 > avgBox.x0 && b.y0 < avgBox.y1 && b.y1 > avgBox.y0;
   // a curve name at (x, y): beside the end, else above it, else below it
   const nameClear = (text, x, y, color) => {
@@ -2267,8 +2272,8 @@ function drawMonopolyProfit() {
     showarrow: false, font: { color, size: 14 }, ...extra });
   const backed = { bgcolor: "rgba(255, 255, 255, 0.75)", borderpad: 2 };
 
-  // step 5: the profit rectangle, under the curves
-  if (n >= 5) {
+  // step 9: the profit rectangle, under the curves
+  if (n >= 9) {
     traces.push({ x: [0, Q, Q, 0, 0], y: [atc, atc, P, P, atc], mode: "lines", fill: "toself",
                   fillcolor: gain ? PF_COLORS.gainFill : PF_COLORS.lossFill, line: { width: 0 }, hoverinfo: "skip" });
     // the label sits in the band's left part, or above the band when the
@@ -2330,38 +2335,43 @@ function drawMonopolyProfit() {
   // height rather than by the order the steps reveal them: neighboring
   // numbers then never swap places, and MC's crossing with MR, which can
   // sit within a whisker of AVC at a steep tilt, is not numbered next to
-  // a point it overlaps. The numbers are collected and assigned after the
-  // steps decide which points are on show.
-  const shown = [];
+  // a point it overlaps. The marker at height mc is where MC meets MR, so
+  // it goes when either curve is hidden; AVC's goes with AVC. Point 1 is
+  // step 1, the others step 4, and the dashed vertical (step 2) runs up
+  // to point 1.
+  const ptYs = [P, atc];
+  if (showMC && showMR) ptYs.push(mc);
+  if (showAVC) ptYs.push(avc);
+  ptYs.sort((a, b) => b - a);
   const axisItems = [];
-  if (n >= 1) {
-    traces.push(guide([Q, Q], [0, n >= 2 ? P : mc]));
-    // the marker at height mc is where MC meets MR, so it goes when either
-    // of the two curves is hidden
-    if (showMC && showMR) { traces.push(point(Q, mc)); shown.push(mc); }
+  if (n >= 2) traces.push(guide([Q, Q], [0, ptYs[0]]));
+  if (n >= 3) {
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
-  if (n >= 2) {
-    traces.push(guide([0, Q], [P, P]), guide([0, Q], [atc, atc]), point(Q, P), point(Q, atc));
-    shown.push(P, atc);
-    axisItems.push({ y: P, text: "P = " + pfNum(P) }, { y: atc, text: "ATC = " + pfNum(atc) });
-  }
-  if (n >= 3 && showAVC) {
-    traces.push(guide([0, Q], [avc, avc]), point(Q, avc));
-    shown.push(avc);
-    axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
-  }
   // highest point is 1; a number sits up and left of its marker, and is
   // nudged further out when the point below it is within a few pixels
-  const ptYs = shown.slice().sort((a, b) => b - a);
   ptYs.forEach((y, i) => {
+    if (n < (i === 0 ? 1 : 4)) return;
+    traces.push(point(Q, y));
     const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
     annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
       xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
       font: { color: "#111", size: 13 } });
   });
-  if (n >= 4) {
+  if (n >= 5) {
+    traces.push(guide([0, Q], [P, P]));
+    axisItems.push({ y: P, text: "P = " + pfNum(P) });
+  }
+  if (n >= 6) {
+    traces.push(guide([0, Q], [atc, atc]));
+    axisItems.push({ y: atc, text: "ATC = " + pfNum(atc) });
+  }
+  if (n >= 7 && showAVC) {
+    traces.push(guide([0, Q], [avc, avc]));
+    axisItems.push({ y: avc, text: "AVC = " + pfNum(avc) });
+  }
+  if (n >= 8) {
     traces.push(line([Q, Q], [atc, P], col, 5));
     annotations.push({ text: "Average profit = " + pfNum(P - atc), x: Q,
       y: thin ? Math.min(P, atc) : (P + atc) / 2, xanchor: "left",
@@ -2372,10 +2382,10 @@ function drawMonopolyProfit() {
   axisItems.forEach((it, i) => annotations.push({ text: it.text, x: 0, y: it.y, xanchor: "right",
     yanchor: "middle", xshift: -4, yshift: shifts[i], showarrow: false, font: { color: "#012169", size: 13 } }));
 
-  document.getElementById("mp-remark-profit").textContent = n < 2 ? ""
+  document.getElementById("mp-remark-profit").textContent = n < 6 ? ""
     : P1 > atc1 ? "Profit is positive because P > ATC"
     : P1 < atc1 ? "Profit is negative because P < ATC" : "Profit is zero because P = ATC";
-  document.getElementById("mp-remark-shutdown").textContent = n < 3 || !showAVC ? ""
+  document.getElementById("mp-remark-shutdown").textContent = n < 7 || !showAVC ? ""
     : P1 >= avc1 ? "Should keep producing because P ≥ AVC" : "Should shut down because P < AVC";
 
   const layout = { margin: MP_MARGIN, ...dsAxes(MP_FRAME), showlegend: false, annotations };
