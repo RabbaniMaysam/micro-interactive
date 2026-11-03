@@ -1790,10 +1790,10 @@ function registerMarketFirmTool() {
 // MC is dashed below the shutdown point, as on the slide.
 // "-" and "+" walk through the analysis in nine steps (nothing at 0), one
 // item per press so that each can be a question to the class:
-//   1 point 1, the highest crossing on the vertical at Q*, unnamed
+//   1 point 1, MR = MC on the vertical at Q*, unnamed
 //   2 the dashed vertical at Q*
 //   3 Q* on the axis
-//   4 points 2 and 3, the other crossings on the vertical, unnamed
+//   4 points 2 (ATC) and 3 (AVC) on the vertical, unnamed
 //   5 P at Q* on the axis
 //   6 ATC at Q* on the axis, remark on the sign of profit
 //   7 AVC at Q* on the axis, remark on producing or shutting down
@@ -1889,27 +1889,26 @@ function drawProfit() {
   traces.push(line([0, PF_MR_END], [P, P], "#111", 3));
   annotations.push(name("P = D = MR = AR", PF_MR_END, P, "#111"));
 
-  // The three numbered points where the vertical at Q* crosses the curves
-  // (MC and the demand line cross it at the same point, P), unnamed so that
-  // the class can be asked which point is which. Numbered top down by
-  // height: 1 is the highest. Numbering by height rather than by reveal
-  // order keeps neighboring numbers from swapping places when the price
-  // knob moves P below ATC. Point 1 is step 1; points 2 and 3 are step 4;
-  // the dashed vertical (step 2) runs up to point 1.
+  // The three numbered points where the vertical at Q* crosses the curves,
+  // unnamed so that the class can be asked which point is which. The
+  // numbers are fixed by meaning, whatever the price: 1 is MR = MC (at
+  // height P, where the demand line also crosses), 2 is ATC, 3 is AVC (the
+  // user's rule, November 3, 2026). Point 1 is step 1; points 2 and 3 are
+  // step 4; the dashed vertical (step 2) runs up to the highest point.
   const axisItems = [];   // labels on the vertical axis, spread apart if needed
-  const ptYs = [P, atc, avc].sort((a, b) => b - a);
-  if (n >= 2) traces.push(guide([Q, Q], [0, ptYs[0]]));
+  const pts = [{ k: 1, y: P }, { k: 2, y: atc }, { k: 3, y: avc }];
+  if (n >= 2) traces.push(guide([Q, Q], [0, Math.max(P, atc, avc)]));
   if (n >= 3) {
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
-  // a number sits up and left of its marker, nudged further out when the
-  // point below it is within a few pixels
-  ptYs.forEach((y, i) => {
-    if (n < (i === 0 ? 1 : 4)) return;
+  // a number sits up and left of its marker, nudged further out when
+  // another point is within a few pixels below it
+  pts.forEach(({ k, y }) => {
+    if (n < (k === 1 ? 1 : 4)) return;
     traces.push(point(Q, y));
-    const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
-    annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
+    const close = pts.some(o => o.y < y && (y - o.y) * pxPerUnit < 14);
+    annotations.push({ text: String(k), x: Q, y, xanchor: "right", yanchor: "bottom",
       xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
       font: { color: "#111", size: 13 } });
   });
@@ -2198,10 +2197,10 @@ function registerDemandMRTool() {
 // shut down beyond (Q* from 14.3 at 0.15 to 4.0 at 2, the start of the
 // drawn cost curves). "-" and "+" walk through the analysis (nothing at 0,
 // curves only), one item per press so that each can be a question:
-//   1 point 1, the highest of the crossings on the vertical at Q*, unnamed
-//   2 the dashed vertical at Q* up to point 1
+//   1 point 1, MR = MC on the vertical at Q*, unnamed
+//   2 the dashed vertical at Q* up to the highest crossing
 //   3 Q* on the axis
-//   4 the other numbered crossings (P on D, ATC, AVC, MR = MC), unnamed
+//   4 points 2 (P on D), 3 (ATC), and 4 (AVC), unnamed
 //   5 P at Q* on the axis
 //   6 ATC at Q* on the axis, remark on the sign of profit
 //   7 AVC at Q* on the axis, remark on producing or shutting down
@@ -2331,31 +2330,29 @@ function drawMonopolyProfit() {
   if (showMR) annotations.push(name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
   // Numbered points, so a crossing can be named in class ("point 2"). All
-  // four sit on the vertical at Q*, so they are numbered top down by
-  // height rather than by the order the steps reveal them: neighboring
-  // numbers then never swap places, and MC's crossing with MR, which can
-  // sit within a whisker of AVC at a steep tilt, is not numbered next to
-  // a point it overlaps. The marker at height mc is where MC meets MR, so
-  // it goes when either curve is hidden; AVC's goes with AVC. Point 1 is
-  // step 1, the others step 4, and the dashed vertical (step 2) runs up
-  // to point 1.
-  const ptYs = [P, atc];
-  if (showMC && showMR) ptYs.push(mc);
-  if (showAVC) ptYs.push(avc);
-  ptYs.sort((a, b) => b - a);
+  // four sit on the vertical at Q*. The numbers are fixed by meaning,
+  // whatever the tilt (the user's rule, November 3, 2026): 1 is MR = MC,
+  // 2 is P on D, 3 is ATC, 4 is AVC. The marker at MR = MC goes when either
+  // curve is hidden; AVC's goes with AVC. Point 1 is step 1, the others
+  // step 4, and the dashed vertical (step 2) runs up to the highest point.
+  const pts = [];
+  if (showMC && showMR) pts.push({ k: 1, y: mc });
+  pts.push({ k: 2, y: P }, { k: 3, y: atc });
+  if (showAVC) pts.push({ k: 4, y: avc });
   const axisItems = [];
-  if (n >= 2) traces.push(guide([Q, Q], [0, ptYs[0]]));
+  if (n >= 2) traces.push(guide([Q, Q], [0, Math.max(...pts.map(o => o.y))]));
   if (n >= 3) {
     annotations.push({ text: "Q* = " + pfNum(Q), x: Q, y: 0, yanchor: "top", yshift: -5,
                        showarrow: false, font: { color: "#012169", size: 13 } });
   }
-  // highest point is 1; a number sits up and left of its marker, and is
-  // nudged further out when the point below it is within a few pixels
-  ptYs.forEach((y, i) => {
-    if (n < (i === 0 ? 1 : 4)) return;
+  // a number sits up and left of its marker, nudged further out when
+  // another point is within a few pixels below it (MC's crossing with MR
+  // can sit within a whisker of AVC at a steep tilt)
+  pts.forEach(({ k, y }) => {
+    if (n < (k === 1 ? 1 : 4)) return;
     traces.push(point(Q, y));
-    const close = i + 1 < ptYs.length && (y - ptYs[i + 1]) * pxPerUnit < 14;
-    annotations.push({ text: String(i + 1), x: Q, y, xanchor: "right", yanchor: "bottom",
+    const close = pts.some(o => o.y < y && (y - o.y) * pxPerUnit < 14);
+    annotations.push({ text: String(k), x: Q, y, xanchor: "right", yanchor: "bottom",
       xshift: close ? -9 : -5, yshift: close ? 6 : 3, showarrow: false,
       font: { color: "#111", size: 13 } });
   });
