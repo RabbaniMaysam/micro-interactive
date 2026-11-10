@@ -608,7 +608,7 @@
     </div>
     <div class="knob-row">
       <span class="knob-name">AVC</span>
-      <input type="range" id="knob-mp-avc" min="16" max="30" step="any" value="20" autocomplete="off">
+      <input type="range" id="knob-mp-avc" min="-10" max="54" step="any" value="20" autocomplete="off">
     </div>
     <div class="button-row">
       <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
@@ -2198,13 +2198,18 @@ function registerDemandMRTool() {
 // quadratic AVC never gets above that). Total cost holds a fixed
 // MP_LUMPS = 54 = k + FC, so ATC = 7 + (q - 10)^2/13 + 54/q whatever k:
 // ATC minimum 11.8 at q = 12.3, profit for b under 1.0. The second knob
-// "AVC" is k (16 to 30, default 20): lower k lowers AVC, and fixed cost
+// "AVC" is k (-10 to 54, default 20): lower k lowers AVC, and fixed cost
 // 54 - k rises behind the scenes, so ATC, MC, Q* and P stay put and only
 // the gap between ATC and AVC, FC/q, changes (the user's request,
-// November 10, 2026, after the curves looked squeezed at k = 30). Shut
-// down from b = 1.47 at k = 30, 1.84 at the default 20, 2.08 at 16; below
-// about 15.5 the shutdown would need a Q* left of the frame, hence the
-// knob's minimum. Q* runs from 14.3 at b = 0.15 to 3.6 at 2.15; the drawn
+// November 10, 2026, after the curves looked squeezed at k = 30; the
+// range was 16 to 30 for an hour, then widened as far as the cost
+// structure allows). At 54 fixed cost is zero and AVC lies on ATC. Below
+// -10 AVC stops being U-shaped on the drawn range (at -20 its lowest
+// point is the left end, off MC), since with ATC fixed MC is fixed too and
+// AVC = ATC - FC/q has no other freedom; a negative k is a variable cost
+// below zero at q = 0, which nothing on the figure shows. Shut down from
+// b = 1.47 at k = 30, 1.84 at the default 20, 2.08 at 16; below about 15.5
+// the tilt cannot reach a shutdown inside the frame. Q* runs from 14.3 at b = 0.15 to 3.6 at 2.15; the drawn
 // cost curves start at 3.5, where ATC is 25.7, inside the frame.
 // "-" and "+" walk through the analysis (nothing at 0,
 // curves only), one item per press so that each can be a question:
@@ -2337,7 +2342,14 @@ function drawMonopolyProfit() {
   const onAxis = y => y < 1 ? { yanchor: "top", xshift: 4, yshift: -4 } : {};
   if (showMC) annotations.push(name("MC", MP_MC_END, MP_MC(MP_MC_END), PF_COLORS.mc));
   annotations.push(nameClear("ATC", MP_COST_END, MP_ATC(MP_COST_END), PF_COLORS.atc));
-  if (showAVC) annotations.push(nameClear("AVC", MP_COST_END, avcF(MP_COST_END), PF_COLORS.avc));
+  if (showAVC) {
+    // with little fixed cost the two right ends nearly meet, so AVC's name
+    // is pushed down until it clears ATC's by 16 px
+    const avcName = nameClear("AVC", MP_COST_END, avcF(MP_COST_END), PF_COLORS.avc);
+    const dy = (MP_ATC(MP_COST_END) - avcF(MP_COST_END)) * pxPerUnit;
+    if (dy < 16) avcName.yshift -= 16 - dy;
+    annotations.push(avcName);
+  }
   annotations.push(name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))));
   if (showMR) annotations.push(name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
