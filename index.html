@@ -604,7 +604,11 @@
     <div id="plot-mp" class="plot eq-plot"></div>
     <div class="knob-row">
       <span class="knob-name">Tilt</span>
-      <input type="range" id="knob-mp" min="0.15" max="1.75" step="any" value="0.6" autocomplete="off">
+      <input type="range" id="knob-mp" min="0.15" max="2.15" step="any" value="0.6" autocomplete="off">
+    </div>
+    <div class="knob-row">
+      <span class="knob-name">AVC</span>
+      <input type="range" id="knob-mp-avc" min="16" max="30" step="any" value="20" autocomplete="off">
     </div>
     <div class="button-row">
       <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
@@ -2183,21 +2187,26 @@ function registerDemandMRTool() {
 // Tool 15 (chapter 11, slides 9 to 14): profit and the shutdown decision
 // of a monopoly (no deadweight loss: the figure is a short-run one).
 // The demand D = 22 - b Q pivots about its fixed intercept 22: the knob is
-// the slope b (0.15 to 1.75, default 0.6), and MR = 22 - 2 b Q; both stop at
+// the slope b (0.15 to 2.15, default 0.6), and MR = 22 - 2 b Q; both stop at
 // Q = 20 or at the Q axis. A flat D reaches a large profit, a steep one a
 // large loss and then P < AVC (the user's design, September 10, 2026).
 // Costs: MC is the chapter 10 shape raised so that its AVC part has its
 // minimum 7 at q = 10 (curvature 1/13); the variable cost also holds a
-// lump of MP_K, so AVC = 7 + (q - 10)^2/13 + MP_K/q (a lump in variable
-// cost does not touch MC, but lifts AVC at small q, which is what puts P
-// under AVC at a steep tilt: with 22 fixed, P = (22 + MC)/2 at Q*, and a
-// plain quadratic AVC never gets above that); ATC = AVC + MP_FC/q. With
-// MP_K = 30 and MP_FC = 48: AVC minimum 9.8 at q = 11.5, ATC minimum 13.7
-// at q = 13.0, both on MC; profit for b under 0.72, a loss up to 1.46, and
-// shut down beyond (Q* from 14.3 at 0.15 to 4.8 at 1.75; the drawn cost
-// curves start at 4.7, where ATC is 25.8, inside the frame). MP_FC was 24
-// until November 10, 2026; the user asked for twice the gap between ATC
-// and AVC, which is MP_FC/q. "-" and "+" walk through the analysis (nothing at 0,
+// lump of k, so AVC = 7 + (q - 10)^2/13 + k/q (a lump in variable cost
+// does not touch MC, but lifts AVC at small q, which is what puts P under
+// AVC at a steep tilt: with 22 fixed, P = (22 + MC)/2 at Q*, and a plain
+// quadratic AVC never gets above that). Total cost holds a fixed
+// MP_LUMPS = 54 = k + FC, so ATC = 7 + (q - 10)^2/13 + 54/q whatever k:
+// ATC minimum 11.8 at q = 12.3, profit for b under 1.0. The second knob
+// "AVC" is k (16 to 30, default 20): lower k lowers AVC, and fixed cost
+// 54 - k rises behind the scenes, so ATC, MC, Q* and P stay put and only
+// the gap between ATC and AVC, FC/q, changes (the user's request,
+// November 10, 2026, after the curves looked squeezed at k = 30). Shut
+// down from b = 1.47 at k = 30, 1.84 at the default 20, 2.08 at 16; below
+// about 15.5 the shutdown would need a Q* left of the frame, hence the
+// knob's minimum. Q* runs from 14.3 at b = 0.15 to 3.6 at 2.15; the drawn
+// cost curves start at 3.5, where ATC is 25.7, inside the frame.
+// "-" and "+" walk through the analysis (nothing at 0,
 // curves only), one item per press so that each can be a question:
 //   1 point 1, MR = MC on the vertical at Q*, unnamed
 //   2 the dashed vertical at Q* up to the highest crossing
@@ -2214,14 +2223,14 @@ function registerDemandMRTool() {
 // ----------------------------------------------------------------------
 const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
-const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4.7, MP_COST_END = 17.5, MP_MC_END = 16.2;
-const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 48;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
+const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 3.5, MP_COST_END = 17.5, MP_MC_END = 16.2;
+const MP_A0 = 7 + 100 / 13, MP_LUMPS = 54;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
 // yellow for the deadweight loss, transparent enough that the profit
 // rectangle and the curves under it still show; the label needs a darker
 // shade of the same color to be readable on white
 const MP_DWL_FILL = "rgba(250, 204, 21, 0.55)", MP_DWL_TEXT = "#a16207";
-const MP_AVC = q => MP_A0 - PF_B * q + PF_C * q * q + MP_K / q;
-const MP_ATC = q => MP_AVC(q) + MP_FC / q;
+const MP_AVC = (q, k) => MP_A0 - PF_B * q + PF_C * q * q + k / q;
+const MP_ATC = q => MP_AVC(q, MP_LUMPS);
 const MP_MC = q => MP_A0 - 2 * PF_B * q + 3 * PF_C * q * q;
 // the larger root of 3c q^2 + k q + (a - A) = 0, i.e. MC = A - m q with k = m - 2b
 const mpRoot = (A, m) => {
@@ -2232,6 +2241,7 @@ const mpRoot = (A, m) => {
 function drawMonopolyProfit() {
   const b = parseFloat(document.getElementById("knob-mp").value), A = MP_A;
   const n = MP_STATE.n;
+  const k = parseFloat(document.getElementById("knob-mp-avc").value), avcF = q => MP_AVC(q, k);
   // MC, MR and AVC can each be hidden. Q* still comes from MC = MR, so the
   // rest of the figure is unchanged; a hidden curve only drops its own
   // line, its point on the vertical at Q*, and anything read off it.
@@ -2240,7 +2250,7 @@ function drawMonopolyProfit() {
   const showAVC = document.getElementById("toggle-mp-avc").checked;
   const showDWL = document.getElementById("toggle-mp-dwl").checked;
   const D = q => A - b * q, MR = q => A - 2 * b * q;
-  const Q = mpRoot(A, 2 * b), P = D(Q), atc = MP_ATC(Q), avc = MP_AVC(Q), mc = MP_MC(Q);
+  const Q = mpRoot(A, 2 * b), P = D(Q), atc = MP_ATC(Q), avc = avcF(Q), mc = MP_MC(Q);
   const r1 = v => Math.round(v * 10) / 10;
   const P1 = r1(P), atc1 = r1(atc), avc1 = r1(avc);
   const gain = P1 >= atc1, col = gain ? PF_COLORS.gain : PF_COLORS.loss;
@@ -2314,7 +2324,7 @@ function drawMonopolyProfit() {
 
   // curves and their names
   const mcS = pfSample(MP_MC, MP_COST_START, MP_MC_END), atcS = pfSample(MP_ATC, MP_COST_START, MP_COST_END),
-        avcS = pfSample(MP_AVC, MP_COST_START, MP_COST_END);
+        avcS = pfSample(avcF, MP_COST_START, MP_COST_END);
   const dEnd = Math.min(MP_END, A / b), mrEnd = Math.min(MP_END, A / (2 * b));
   if (showMC) traces.push(line(mcS.xs, mcS.ys, PF_COLORS.mc, 3));
   traces.push(line(atcS.xs, atcS.ys, PF_COLORS.atc, 3));
@@ -2327,7 +2337,7 @@ function drawMonopolyProfit() {
   const onAxis = y => y < 1 ? { yanchor: "top", xshift: 4, yshift: -4 } : {};
   if (showMC) annotations.push(name("MC", MP_MC_END, MP_MC(MP_MC_END), PF_COLORS.mc));
   annotations.push(nameClear("ATC", MP_COST_END, MP_ATC(MP_COST_END), PF_COLORS.atc));
-  if (showAVC) annotations.push(nameClear("AVC", MP_COST_END, MP_AVC(MP_COST_END), PF_COLORS.avc));
+  if (showAVC) annotations.push(nameClear("AVC", MP_COST_END, avcF(MP_COST_END), PF_COLORS.avc));
   annotations.push(name("D", dEnd, D(dEnd), "#111", onAxis(D(dEnd))));
   if (showMR) annotations.push(name("MR", mrEnd, MR(mrEnd), "#2563eb", onAxis(MR(mrEnd))));
 
@@ -2400,6 +2410,7 @@ function registerMonopolyProfitTool() {
   minus.addEventListener("click", () => { if (MP_STATE.n > 0) { MP_STATE.n--; update(); } });
   plus.addEventListener("click", () => { if (MP_STATE.n < MP_STEPS) { MP_STATE.n++; update(); } });
   document.getElementById("knob-mp").addEventListener("input", drawMonopolyProfit);
+  document.getElementById("knob-mp-avc").addEventListener("input", drawMonopolyProfit);
   const curveIds = ["toggle-mp-mc", "toggle-mp-mr", "toggle-mp-avc"];
   const dwl = document.getElementById("toggle-mp-dwl");
   curveIds.concat("toggle-mp-dwl").forEach(id =>
@@ -2409,6 +2420,7 @@ function registerMonopolyProfitTool() {
     reset: () => {
       MP_STATE.n = 0;
       resetKnob("knob-mp");
+      resetKnob("knob-mp-avc");
       // the three curves start on show and the deadweight loss hidden, so
       // reset restores each to its own starting state
       curveIds.forEach(id => document.getElementById(id).checked = true);
