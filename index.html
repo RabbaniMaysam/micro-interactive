@@ -604,7 +604,7 @@
     <div id="plot-mp" class="plot eq-plot"></div>
     <div class="knob-row">
       <span class="knob-name">Tilt</span>
-      <input type="range" id="knob-mp" min="0.15" max="2" step="any" value="0.6" autocomplete="off">
+      <input type="range" id="knob-mp" min="0.15" max="1.75" step="any" value="0.6" autocomplete="off">
     </div>
     <div class="button-row">
       <button class="step-btn" id="btn-mp-minus" title="Remove the last step">&minus;</button>
@@ -2183,7 +2183,7 @@ function registerDemandMRTool() {
 // Tool 15 (chapter 11, slides 9 to 14): profit and the shutdown decision
 // of a monopoly (no deadweight loss: the figure is a short-run one).
 // The demand D = 22 - b Q pivots about its fixed intercept 22: the knob is
-// the slope b (0.15 to 2, default 0.6), and MR = 22 - 2 b Q; both stop at
+// the slope b (0.15 to 1.75, default 0.6), and MR = 22 - 2 b Q; both stop at
 // Q = 20 or at the Q axis. A flat D reaches a large profit, a steep one a
 // large loss and then P < AVC (the user's design, September 10, 2026).
 // Costs: MC is the chapter 10 shape raised so that its AVC part has its
@@ -2192,10 +2192,12 @@ function registerDemandMRTool() {
 // cost does not touch MC, but lifts AVC at small q, which is what puts P
 // under AVC at a steep tilt: with 22 fixed, P = (22 + MC)/2 at Q*, and a
 // plain quadratic AVC never gets above that); ATC = AVC + MP_FC/q. With
-// MP_K = 30 and MP_FC = 24: AVC minimum 9.8 at q = 11.5, ATC minimum 11.8
-// at q = 12.3, both on MC; profit for b under 1.0, a loss up to 1.5, and
-// shut down beyond (Q* from 14.3 at 0.15 to 4.0 at 2, the start of the
-// drawn cost curves). "-" and "+" walk through the analysis (nothing at 0,
+// MP_K = 30 and MP_FC = 48: AVC minimum 9.8 at q = 11.5, ATC minimum 13.7
+// at q = 13.0, both on MC; profit for b under 0.72, a loss up to 1.46, and
+// shut down beyond (Q* from 14.3 at 0.15 to 4.8 at 1.75; the drawn cost
+// curves start at 4.7, where ATC is 25.8, inside the frame). MP_FC was 24
+// until November 10, 2026; the user asked for twice the gap between ATC
+// and AVC, which is MP_FC/q. "-" and "+" walk through the analysis (nothing at 0,
 // curves only), one item per press so that each can be a question:
 //   1 point 1, MR = MC on the vertical at Q*, unnamed
 //   2 the dashed vertical at Q* up to the highest crossing
@@ -2212,8 +2214,8 @@ function registerDemandMRTool() {
 // ----------------------------------------------------------------------
 const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
-const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4, MP_COST_END = 17.5, MP_MC_END = 16.2;
-const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 24;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
+const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 4.7, MP_COST_END = 17.5, MP_MC_END = 16.2;
+const MP_A0 = 7 + 100 / 13, MP_K = 30, MP_FC = 48;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
 // yellow for the deadweight loss, transparent enough that the profit
 // rectangle and the curves under it still show; the label needs a darker
 // shade of the same color to be readable on white
