@@ -2186,18 +2186,20 @@ function registerDemandMRTool() {
 // ----------------------------------------------------------------------
 // Tool 15 (chapter 11, slides 9 to 14): profit and the shutdown decision
 // of a monopoly (no deadweight loss: the figure is a short-run one).
-// The demand D = 22 - b Q pivots about its fixed intercept 22: the knob is
-// the slope b (0.15 to 2.15, default 0.6), and MR = 22 - 2 b Q; both stop at
+// The demand D = 24 - b Q pivots about its fixed intercept 24 (22 until
+// November 12, 2026, raised at the user's request with every other element
+// unchanged): the knob is
+// the slope b (0.15 to 2.15, default 0.6), and MR = 24 - 2 b Q; both stop at
 // Q = 20 or at the Q axis. A flat D reaches a large profit, a steep one a
 // large loss and then P < AVC (the user's design, September 10, 2026).
 // Costs: MC is the chapter 10 shape raised so that its AVC part has its
 // minimum 7 at q = 10 (curvature 1/13); the variable cost also holds a
 // lump of k, so AVC = 7 + (q - 10)^2/13 + k/q (a lump in variable cost
 // does not touch MC, but lifts AVC at small q, which is what puts P under
-// AVC at a steep tilt: with 22 fixed, P = (22 + MC)/2 at Q*, and a plain
+// AVC at a steep tilt: with 24 fixed, P = (24 + MC)/2 at Q*, and a plain
 // quadratic AVC never gets above that). Total cost holds a fixed
 // MP_LUMPS = 54 = k + FC, so ATC = 7 + (q - 10)^2/13 + 54/q whatever k:
-// ATC minimum 11.8 at q = 12.3, profit for b under 1.0. The second knob
+// ATC minimum 11.8 at q = 12.3, profit for b under 1.24. The second knob
 // "AVC" is k (-10 to 54, default 20): lower k lowers AVC, and fixed cost
 // 54 - k rises behind the scenes, so ATC, MC, Q* and P stay put and only
 // the gap between ATC and AVC, FC/q, changes (the user's request,
@@ -2208,8 +2210,8 @@ function registerDemandMRTool() {
 // point is the left end, off MC), since with ATC fixed MC is fixed too and
 // AVC = ATC - FC/q has no other freedom; a negative k is a variable cost
 // below zero at q = 0, which nothing on the figure shows. Shut down from
-// b = 1.47 at k = 30, 1.84 at the default 20, 2.08 at 16; below about 15.5
-// the tilt cannot reach a shutdown inside the frame. Q* runs from 14.3 at b = 0.15 to 3.6 at 2.15; the drawn
+// b = 1.82 at k = 30; below about 22.6 (so at the default 20) the tilt
+// cannot reach a shutdown inside the frame. Q* runs from 14.8 at b = 0.15 to 4.2 at 2.15; the drawn
 // cost curves start at 3.5, where ATC is 25.7, inside the frame.
 // "-" and "+" walk through the analysis (nothing at 0,
 // curves only), one item per press so that each can be a question:
@@ -2226,7 +2228,7 @@ function registerDemandMRTool() {
 // right ends of ATC and AVC move above or below the end when the average
 // profit label would print on them.
 // ----------------------------------------------------------------------
-const MP_A = 22, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
+const MP_A = 24, MP_FRAME = { xMax: 22, yMax: 26, xPad: 0.6, yPad: 0.6 };
 const MP_MARGIN = { l: 84, r: 30, t: 20, b: 30 };   // l fits "ATC = 11.1"
 const MP_STEPS = 9, MP_STATE = { n: 0 }, MP_END = 20, MP_COST_START = 3.5, MP_COST_END = 17.5, MP_MC_END = 16.2;
 const MP_A0 = 7 + 100 / 13, MP_LUMPS = 54;   // MP_A0 - PF_B q + PF_C q^2 has its minimum 7 at q = 10
